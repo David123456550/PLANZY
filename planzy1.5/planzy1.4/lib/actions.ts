@@ -147,10 +147,13 @@ async function sendVerificationEmail(email: string, name: string, code: string) 
 
 export async function getUser(email: string) {
     await connectToDatabase();
+    console.log(`🔍 Buscando usuario con email: ${email}`);
     const user = await UserModel.findOne({ email });
     if (user) {
+        console.log(`✅ Usuario encontrado: ${email}, verificado: ${user.isEmailVerified}`);
         return JSON.parse(JSON.stringify(user));
     }
+    console.log(`❌ No se encontró usuario con email: ${email}`);
     return null;
 }
 
@@ -191,12 +194,30 @@ async function generateUniqueUsername(baseUsername: string): Promise<string> {
 export async function createUser(userData: User) {
     try {
         await connectToDatabase();
+        console.log(`🔍 Verificando si existe usuario con email: ${userData.email}`);
+        
+        // Primero contar todos los usuarios para debug
+        const totalUsers = await UserModel.countDocuments({});
+        console.log(`📊 Total de usuarios en BD: ${totalUsers}`);
+        
         const existing = await UserModel.findOne({ $or: [{ email: userData.email }, { id: userData.id }] });
+        
+        if (existing) {
+            console.log(`⚠️ Usuario existente encontrado:`, {
+                email: existing.email,
+                isEmailVerified: existing.isEmailVerified,
+                id: existing.id
+            });
+        } else {
+            console.log(`✅ No existe usuario con ese email, procediendo a crear`);
+        }
         
         // Si el usuario existe pero no está verificado, permitir re-registro eliminando el anterior
         if (existing && existing.email === userData.email && !existing.isEmailVerified) {
+            console.log(`🗑️ Eliminando usuario no verificado: ${userData.email}`);
             await UserModel.deleteOne({ email: userData.email });
         } else if (existing) {
+            console.log(`⚠️ Usuario ya existe y está verificado, retornando usuario existente`);
             return JSON.parse(JSON.stringify(existing));
         }
 
@@ -254,9 +275,13 @@ export async function updateUser(id: string, updates: Partial<User>) {
 }
 
 // Funciones de limpieza de usuarios (útil para desarrollo/testing)
-export async function deleteUserByEmail(email: string) {
+export async function deleteUserByEmail(email: string, includeVerified: boolean = true) {
     await connectToDatabase();
-    const result = await UserModel.deleteOne({ email });
+    const query: any = { email };
+    if (!includeVerified) {
+        query.isEmailVerified = false;
+    }
+    const result = await UserModel.deleteOne(query);
     revalidatePath('/');
     return { success: true, deletedCount: result.deletedCount };
 }

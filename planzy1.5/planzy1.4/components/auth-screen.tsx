@@ -141,15 +141,20 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
       } else {
         const existingUser = await getUser(email)
         if (existingUser) {
-          toast({
-            title: language === "es" ? "Cuenta existente" : "Account already exists",
-            description:
-              language === "es"
-                ? "Ya hay una cuenta registrada con ese correo"
-                : "An account with this email already exists",
-            variant: "destructive",
-          })
-          return
+          // Si el usuario existe pero no está verificado, permitir re-registro
+          if (!existingUser.isEmailVerified) {
+            // El createUser ya maneja esto, continuar con el registro
+          } else {
+            toast({
+              title: language === "es" ? "Cuenta existente" : "Account already exists",
+              description:
+                language === "es"
+                  ? "Ya hay una cuenta verificada con ese correo. Si quieres eliminarla, usa la página de administración."
+                  : "An account with this email already exists. If you want to delete it, use the admin page.",
+              variant: "destructive",
+            })
+            return
+          }
         }
 
         // Generar username base desde el email, asegurando que tenga al menos 3 caracteres
