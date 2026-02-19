@@ -96,6 +96,7 @@ async function sendVerificationEmail(email: string, name: string, code: string) 
   // 1. Usar Resend si hay API key (no requiere SMTP)
   const resendApiKey = process.env.RESEND_API_KEY;
   console.log("🔍 Verificando RESEND_API_KEY:", resendApiKey ? `Configurada (${resendApiKey.substring(0, 10)}...)` : "NO CONFIGURADA");
+  console.log("🔍 Variables de entorno disponibles:", Object.keys(process.env).filter(k => k.includes('RESEND') || k.includes('SMTP')).join(', '));
   
   if (resendApiKey) {
     try {
