@@ -62,7 +62,9 @@ export function SettingsSheet({ open, onOpenChange }: SettingsSheetProps) {
     }, 1500)
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const { signOut } = await import("next-auth/react")
+    await signOut({ redirect: false })
     setUser(null)
     setAuthenticated(false)
     onOpenChange(false)

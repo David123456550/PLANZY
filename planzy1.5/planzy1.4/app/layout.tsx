@@ -6,6 +6,8 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { DataInitializer } from "@/components/data-initializer"
+import { PlanzySessionProvider } from "@/components/session-provider"
+import { AuthSync } from "@/components/auth-sync"
 
 const dmSans = DM_Sans({ subsets: ["latin"], weight: ["400", "500", "600", "700"] })
 
@@ -31,9 +33,12 @@ export default function RootLayout({
     <html lang="es" suppressHydrationWarning>
       <body className={`${dmSans.className} antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          {children}
-          <DataInitializer />
-          <Toaster />
+          <PlanzySessionProvider>
+            {children}
+            <AuthSync />
+            <DataInitializer />
+            <Toaster />
+          </PlanzySessionProvider>
         </ThemeProvider>
         <Analytics />
       </body>
