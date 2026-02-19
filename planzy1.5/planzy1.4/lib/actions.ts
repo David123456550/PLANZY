@@ -8,7 +8,6 @@ import { WalletTransaction as WalletTransactionModel } from "@/lib/models/Wallet
 import { revalidatePath } from "next/cache";
 import type { User, Plan, Tournament, WalletTransaction } from "@/lib/types";
 import nodemailer from "nodemailer";
-import { Resend } from "resend";
 
 const RESEND_DEFAULT_FROM = "Planzy <onboarding@resend.dev>";
 
@@ -34,15 +33,31 @@ async function sendVerificationEmailViaResend(email: string, name: string, code:
     </div>
   `;
 
-  const resend = new Resend(apiKey);
-  const { error } = await resend.emails.send({
-    from: getResendFrom(),
-    to: email,
-    subject,
-    html,
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: getResendFrom(),
+      to: [email],
+      subject,
+      html,
+      text: `Tu código de verificación es ${code}. Expira en 10 minutos.`,
+    }),
   });
 
-  if (error) throw new Error(error.message);
+  if (!response.ok) {
+    let details = "";
+    try {
+      const data = await response.json();
+      details = data?.message ? `: ${data.message}` : "";
+    } catch {
+      // ignore
+    }
+    throw new Error(`Resend error (${response.status})${details}`);
+  }
 }
 
 function buildMailTransport() {
