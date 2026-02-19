@@ -14,7 +14,6 @@ import { useAppStore } from "@/lib/store"
 import { useTranslation } from "@/lib/i18n"
 import { useToast } from "@/hooks/use-toast"
 import { createUser, getUser, sendRegisterVerificationCode, verifyRegisterCode } from "@/lib/actions"
-import { signIn } from "next-auth/react"
 import type { User } from "@/lib/types"
 
 interface AuthScreenProps {
@@ -42,8 +41,44 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
   const [isSendingReset, setIsSendingReset] = useState(false)
   const [pendingUser, setPendingUser] = useState<User | null>(null)
 
-  const handleSocialLogin = (provider: "google" | "facebook" | "apple") => {
-    signIn(provider, { callbackUrl: "/" })
+  const handleSocialLogin = async (provider: "google" | "facebook" | "apple") => {
+    try {
+      const socialEmail = `${provider}@planzy.local`
+      const existing = await getUser(socialEmail)
+      if (existing) {
+        onLogin(existing)
+        return
+      }
+
+      const socialUser: User = {
+        id: `user-${Date.now()}`,
+        name: provider === "google" ? "Google User" : provider === "facebook" ? "Facebook User" : "Apple User",
+        username: `${provider}${Date.now().toString().slice(-6)}`,
+        email: socialEmail,
+        interests: [],
+        createdAt: new Date(),
+        language,
+        notificationSettings: {
+          newPlansInArea: true,
+          upcomingPlans: true,
+          planChanges: true,
+          groupMessages: true,
+        },
+        preferredPaymentMethod: null,
+        walletBalance: 0,
+        premiumPlan: "free",
+        savedPaymentMethods: [],
+      }
+
+      const created = await createUser(socialUser)
+      onLogin(created)
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: language === "es" ? "No se pudo iniciar sesión" : "Login failed",
+        variant: "destructive",
+      })
+    }
   }
 
   const recentPlans = mockPlans.slice(0, 3)

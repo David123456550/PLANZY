@@ -41,9 +41,7 @@ export function MainApp() {
     }
   }
 
-  const handleLogout = async () => {
-    const { signOut } = await import("next-auth/react")
-    await signOut({ redirect: false })
+  const handleLogout = () => {
     setAuthenticated(false)
     setUser(null)
   }
