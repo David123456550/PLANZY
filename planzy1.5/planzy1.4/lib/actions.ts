@@ -8,60 +8,97 @@ import { WalletTransaction as WalletTransactionModel } from "@/lib/models/Wallet
 import { revalidatePath } from "next/cache";
 import type { User, Plan, Tournament, WalletTransaction } from "@/lib/types";
 import nodemailer from "nodemailer";
+import { Resend } from "resend";
+
+const RESEND_DEFAULT_FROM = "Planzy <onboarding@resend.dev>";
+
+function getResendFrom(): string {
+  const custom = process.env.RESEND_FROM;
+  if (custom?.includes("@")) {
+    return custom.includes("<") ? custom : `Planzy <${custom}>`;
+  }
+  return RESEND_DEFAULT_FROM;
+}
+
+async function sendVerificationEmailViaResend(email: string, name: string, code: string) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error("RESEND_API_KEY no configurada");
+
+  const subject = "Código de verificación de Planzy";
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height:1.5; color:#222;">
+      <h2>¡Hola ${name || ""}!</h2>
+      <p>Tu código de verificación es:</p>
+      <p style="font-size: 28px; font-weight: 700; letter-spacing: 4px; margin: 16px 0;">${code}</p>
+      <p>Este código expira en 10 minutos.</p>
+    </div>
+  `;
+
+  const resend = new Resend(apiKey);
+  const { error } = await resend.emails.send({
+    from: getResendFrom(),
+    to: email,
+    subject,
+    html,
+  });
+
+  if (error) throw new Error(error.message);
+}
 
 function buildMailTransport() {
-        const host = process.env.SMTP_HOST || "127.0.0.1";
-        const port = Number(process.env.SMTP_PORT || 1025);
-        const user = process.env.SMTP_USER;
-        const pass = process.env.SMTP_PASS;
+  const host = process.env.SMTP_HOST || "127.0.0.1";
+  const port = Number(process.env.SMTP_PORT || 1025);
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
 
-        return nodemailer.createTransport({
-                host,
-                port,
-                secure: port === 465,
-                auth: user && pass ? { user, pass } : undefined,
-        });
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: user && pass ? { user, pass } : undefined,
+  });
 }
 
 async function sendVerificationEmail(email: string, name: string, code: string) {
-        const from = process.env.SMTP_FROM || "no-reply@planzy.local";
-        const isDevelopment = process.env.NODE_ENV === "development" || !process.env.SMTP_HOST;
-        
-        try {
-                const transporter = buildMailTransport();
+  const subject = "Código de verificación de Planzy";
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height:1.5; color:#222;">
+      <h2>¡Hola ${name || ""}!</h2>
+      <p>Tu código de verificación es:</p>
+      <p style="font-size: 28px; font-weight: 700; letter-spacing: 4px; margin: 16px 0;">${code}</p>
+      <p>Este código expira en 10 minutos.</p>
+    </div>
+  `;
 
-                const subject = "Código de verificación de Planzy";
-                const html = `
-                    <div style="font-family: Arial, sans-serif; line-height:1.5; color:#222;">
-                        <h2>¡Hola ${name || ""}!</h2>
-                        <p>Tu código de verificación es:</p>
-                        <p style="font-size: 28px; font-weight: 700; letter-spacing: 4px; margin: 16px 0;">${code}</p>
-                        <p>Este código expira en 10 minutos.</p>
-                    </div>
-                `;
+  // 1. Usar Resend si hay API key (no requiere SMTP)
+  if (process.env.RESEND_API_KEY) {
+    await sendVerificationEmailViaResend(email, name, code);
+    return;
+  }
 
-                await transporter.sendMail({
-                        from,
-                        to: email,
-                        subject,
-                        html,
-                        text: `Tu código de verificación es ${code}. Expira en 10 minutos.`,
-                });
-        } catch (error: any) {
-                // En desarrollo, mostrar el código en consola si SMTP falla
-                if (isDevelopment || error.code === 'ECONNREFUSED' || error.code === 'ESOCKET') {
-                        console.log("=".repeat(60));
-                        console.log("📧 CÓDIGO DE VERIFICACIÓN (SMTP no disponible)");
-                        console.log("=".repeat(60));
-                        console.log(`Email: ${email}`);
-                        console.log(`Código: ${code}`);
-                        console.log("=".repeat(60));
-                        // No lanzar error en desarrollo, permitir continuar
-                        return;
-                }
-                // En producción, relanzar el error
-                throw error;
-        }
+  // 2. Usar SMTP (Mailhog, Mailpit, Gmail, etc.)
+  const isDevelopment = process.env.NODE_ENV === "development";
+  try {
+    const transporter = buildMailTransport();
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || "no-reply@planzy.local",
+      to: email,
+      subject,
+      html,
+      text: `Tu código de verificación es ${code}. Expira en 10 minutos.`,
+    });
+  } catch (error: any) {
+    if (isDevelopment || error.code === "ECONNREFUSED" || error.code === "ESOCKET") {
+      console.log("=".repeat(60));
+      console.log("📧 CÓDIGO DE VERIFICACIÓN (SMTP no disponible)");
+      console.log("=".repeat(60));
+      console.log(`Email: ${email}`);
+      console.log(`Código: ${code}`);
+      console.log("=".repeat(60));
+      return;
+    }
+    throw error;
+  }
 }
 
 // --- User Actions ---
