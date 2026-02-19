@@ -87,8 +87,14 @@ async function sendVerificationEmail(email: string, name: string, code: string) 
 
   // 1. Usar Resend si hay API key (no requiere SMTP)
   if (process.env.RESEND_API_KEY) {
-    await sendVerificationEmailViaResend(email, name, code);
-    return;
+    try {
+      await sendVerificationEmailViaResend(email, name, code);
+      console.log(`✅ Correo enviado vía Resend a ${email}`);
+      return;
+    } catch (error: any) {
+      console.error("❌ Error enviando correo con Resend:", error.message);
+      throw error; // Relanzar error para que el usuario sepa qué pasó
+    }
   }
 
   // 2. Usar SMTP (Mailhog, Mailpit, Gmail, etc.)
@@ -102,7 +108,11 @@ async function sendVerificationEmail(email: string, name: string, code: string) 
       html,
       text: `Tu código de verificación es ${code}. Expira en 10 minutos.`,
     });
+    console.log(`✅ Correo enviado vía SMTP a ${email}`);
   } catch (error: any) {
+    console.error("❌ Error enviando correo con SMTP:", error.message);
+    
+    // En desarrollo, mostrar código en consola como fallback
     if (isDevelopment || error.code === "ECONNREFUSED" || error.code === "ESOCKET") {
       console.log("=".repeat(60));
       console.log("📧 CÓDIGO DE VERIFICACIÓN (SMTP no disponible)");
@@ -110,6 +120,10 @@ async function sendVerificationEmail(email: string, name: string, code: string) 
       console.log(`Email: ${email}`);
       console.log(`Código: ${code}`);
       console.log("=".repeat(60));
+      console.log("💡 Para enviar correos reales, configura RESEND_API_KEY en .env");
+      console.log("   Obtén tu API key gratis en: https://resend.com/api-keys");
+      console.log("=".repeat(60));
+      // No lanzar error en desarrollo, permitir continuar
       return;
     }
     throw error;
@@ -172,23 +186,46 @@ export async function sendRegisterVerificationCode(email: string) {
     user.emailVerificationExpiresAt = expiresAt;
     await user.save();
 
-    const isDevelopment = process.env.NODE_ENV === "development" || !process.env.SMTP_HOST;
+    const isDevelopment = process.env.NODE_ENV === "development";
     let emailSent = false;
+    let errorMessage: string | undefined = undefined;
     
     try {
         await sendVerificationEmail(user.email, user.name, code);
         emailSent = true;
     } catch (error: any) {
-        // Si falla el envío pero estamos en desarrollo, continuar de todas formas
-        if (!isDevelopment && error.code !== 'ECONNREFUSED' && error.code !== 'ESOCKET') {
-            throw error;
+        errorMessage = error.message;
+        console.error(`❌ Error enviando correo a ${email}:`, errorMessage);
+        
+        // Si hay RESEND_API_KEY configurada pero falla, es un error real
+        if (process.env.RESEND_API_KEY) {
+            throw new Error(`No se pudo enviar el correo: ${errorMessage}. Verifica tu RESEND_API_KEY en .env`);
+        }
+        
+        // Si estamos en desarrollo y no hay SMTP configurado, mostrar código en consola
+        if (isDevelopment) {
+            console.log("=".repeat(60));
+            console.log("⚠️  CORREO NO ENVIADO - Configura RESEND_API_KEY para enviar correos reales");
+            console.log("=".repeat(60));
+            console.log(`Email destino: ${email}`);
+            console.log(`Código de verificación: ${code}`);
+            console.log("=".repeat(60));
+            console.log("📝 Para enviar correos reales:");
+            console.log("   1. Regístrate en https://resend.com");
+            console.log("   2. Obtén tu API key en https://resend.com/api-keys");
+            console.log("   3. Agrega RESEND_API_KEY=tu_key_aqui en tu archivo .env");
+            console.log("=".repeat(60));
+        } else {
+            // En producción, lanzar error si no se pudo enviar
+            throw new Error(`No se pudo enviar el correo: ${errorMessage}`);
         }
     }
     
-    // Devolver el código si estamos en desarrollo o si el email no se pudo enviar
+    // Devolver el código solo si estamos en desarrollo y el correo no se envió
     return { 
         success: true, 
-        code: (isDevelopment || !emailSent) ? code : undefined 
+        code: (isDevelopment && !emailSent) ? code : undefined,
+        emailSent
     };
 }
 
