@@ -33,6 +33,9 @@ async function sendVerificationEmailViaResend(email: string, name: string, code:
     </div>
   `;
 
+  const fromAddress = getResendFrom();
+  console.log(`📤 Enviando correo desde: ${fromAddress} a: ${email}`);
+
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -40,7 +43,7 @@ async function sendVerificationEmailViaResend(email: string, name: string, code:
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: getResendFrom(),
+      from: fromAddress,
       to: [email],
       subject,
       html,
@@ -49,15 +52,20 @@ async function sendVerificationEmailViaResend(email: string, name: string, code:
   });
 
   if (!response.ok) {
-    let details = "";
+    let errorDetails = "";
     try {
       const data = await response.json();
-      details = data?.message ? `: ${data.message}` : "";
-    } catch {
-      // ignore
+      errorDetails = data?.message ? `: ${data.message}` : "";
+      console.error("Respuesta de error de Resend:", data);
+    } catch (e) {
+      const text = await response.text();
+      console.error("Respuesta de error (texto):", text);
     }
-    throw new Error(`Resend error (${response.status})${details}`);
+    throw new Error(`Resend error (${response.status})${errorDetails}`);
   }
+
+  const responseData = await response.json();
+  console.log("✅ Respuesta exitosa de Resend:", responseData);
 }
 
 function buildMailTransport() {
@@ -86,13 +94,18 @@ async function sendVerificationEmail(email: string, name: string, code: string) 
   `;
 
   // 1. Usar Resend si hay API key (no requiere SMTP)
-  if (process.env.RESEND_API_KEY) {
+  const resendApiKey = process.env.RESEND_API_KEY;
+  console.log("🔍 Verificando RESEND_API_KEY:", resendApiKey ? `Configurada (${resendApiKey.substring(0, 10)}...)` : "NO CONFIGURADA");
+  
+  if (resendApiKey) {
     try {
+      console.log(`📧 Intentando enviar correo vía Resend a ${email}...`);
       await sendVerificationEmailViaResend(email, name, code);
-      console.log(`✅ Correo enviado vía Resend a ${email}`);
+      console.log(`✅ Correo enviado exitosamente vía Resend a ${email}`);
       return;
     } catch (error: any) {
       console.error("❌ Error enviando correo con Resend:", error.message);
+      console.error("Detalles del error:", error);
       throw error; // Relanzar error para que el usuario sepa qué pasó
     }
   }
