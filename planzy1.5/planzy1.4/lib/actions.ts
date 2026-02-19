@@ -253,6 +253,34 @@ export async function updateUser(id: string, updates: Partial<User>) {
     return JSON.parse(JSON.stringify(updated));
 }
 
+// Funciones de limpieza de usuarios (útil para desarrollo/testing)
+export async function deleteUserByEmail(email: string) {
+    await connectToDatabase();
+    const result = await UserModel.deleteOne({ email });
+    revalidatePath('/');
+    return { success: true, deletedCount: result.deletedCount };
+}
+
+export async function deleteAllUnverifiedUsers() {
+    await connectToDatabase();
+    const result = await UserModel.deleteMany({ isEmailVerified: false });
+    revalidatePath('/');
+    return { success: true, deletedCount: result.deletedCount };
+}
+
+export async function deleteAllUsers() {
+    await connectToDatabase();
+    const result = await UserModel.deleteMany({});
+    revalidatePath('/');
+    return { success: true, deletedCount: result.deletedCount };
+}
+
+export async function getAllUsers() {
+    await connectToDatabase();
+    const users = await UserModel.find({}).select('email isEmailVerified createdAt').sort({ createdAt: -1 });
+    return JSON.parse(JSON.stringify(users));
+}
+
 export async function sendRegisterVerificationCode(email: string) {
     await connectToDatabase();
     const user = await UserModel.findOne({ email });
