@@ -104,14 +104,32 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
           return
         }
         if (!existingUser.isEmailVerified) {
-          toast({
-            title: language === "es" ? "Correo no verificado" : "Email not verified",
-            description:
-              language === "es"
-                ? "Debes verificar tu correo para iniciar sesión"
-                : "You must verify your email before logging in",
-            variant: "destructive",
-          })
+          // Si el usuario no está verificado, enviar código de verificación y mostrar pantalla de verificación
+          try {
+            const result = await sendRegisterVerificationCode(existingUser.email)
+            setPendingUser(existingUser)
+            setAuthMode("register")
+            setStep("verification")
+            toast({
+              title: language === "es" ? "Correo no verificado" : "Email not verified",
+              description: result.code
+                ? (language === "es"
+                    ? `Debes verificar tu correo. Código: ${result.code} (revisa consola del servidor)`
+                    : `You must verify your email. Code: ${result.code} (check server console)`)
+                : (language === "es"
+                    ? "Hemos reenviado el código de verificación a tu correo"
+                    : "We've resent the verification code to your email"),
+            })
+          } catch (error) {
+            toast({
+              title: language === "es" ? "Correo no verificado" : "Email not verified",
+              description:
+                language === "es"
+                  ? "Debes verificar tu correo para iniciar sesión. Revisa la consola del servidor para el código."
+                  : "You must verify your email before logging in. Check server console for code.",
+              variant: "destructive",
+            })
+          }
           return
         }
         onLogin(existingUser)
@@ -157,19 +175,31 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
           savedPaymentMethods: [],
         }
         const created = await createUser(registerUser)
-        await sendRegisterVerificationCode(created.email)
+        const result = await sendRegisterVerificationCode(created.email)
         setPendingUser(created)
+        
+        setAuthMode(mode)
+        setStep("verification")
+        
+        // Mostrar mensaje con código si está disponible (modo desarrollo)
+        if (result.code) {
+          toast({
+            title: language === "es" ? "Código generado" : "Code generated",
+            description:
+              language === "es"
+                ? `Código de verificación: ${result.code} (SMTP no disponible, revisa la consola del servidor)`
+                : `Verification code: ${result.code} (SMTP unavailable, check server console)`,
+          })
+        } else {
+          toast({
+            title: language === "es" ? "Código enviado" : "Code sent",
+            description:
+              language === "es"
+                ? `Hemos enviado un código de verificación a ${email}`
+                : `We sent a verification code to ${email}`,
+          })
+        }
       }
-
-      setAuthMode(mode)
-      setStep("verification")
-      toast({
-        title: language === "es" ? "Código enviado" : "Code sent",
-        description:
-          language === "es"
-            ? `Hemos enviado un código de verificación a ${email}`
-            : `We sent a verification code to ${email}`,
-      })
     } catch (error) {
       toast({
         title: "Error",
@@ -234,21 +264,26 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
     setIsResending(true)
     setVerificationCode("") // Clear old code
     sendRegisterVerificationCode(pendingUser.email)
-      .then(() => {
+      .then((result) => {
         setIsResending(false)
         toast({
           title: t.newCodeSent,
-          description: t.newCodeSentDesc,
+          description: result.code 
+            ? (language === "es" 
+                ? `Código reenviado. Revisa la consola del servidor para ver el código: ${result.code}`
+                : `Code resent. Check server console for code: ${result.code}`)
+            : t.newCodeSentDesc,
         })
       })
-      .catch(() => {
+      .catch((error) => {
         setIsResending(false)
+        console.error("Error reenviando código:", error)
         toast({
           title: "Error",
           description:
             language === "es"
-              ? "No se pudo reenviar el código. Revisa la configuración SMTP."
-              : "Could not resend code. Check SMTP configuration.",
+              ? "No se pudo reenviar el código. Revisa la consola del servidor para más detalles."
+              : "Could not resend code. Check server console for details.",
           variant: "destructive",
         })
       })

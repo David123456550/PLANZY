@@ -25,25 +25,43 @@ function buildMailTransport() {
 
 async function sendVerificationEmail(email: string, name: string, code: string) {
         const from = process.env.SMTP_FROM || "no-reply@planzy.local";
-        const transporter = buildMailTransport();
+        const isDevelopment = process.env.NODE_ENV === "development" || !process.env.SMTP_HOST;
+        
+        try {
+                const transporter = buildMailTransport();
 
-        const subject = "Código de verificación de Planzy";
-        const html = `
-            <div style="font-family: Arial, sans-serif; line-height:1.5; color:#222;">
-                <h2>¡Hola ${name || ""}!</h2>
-                <p>Tu código de verificación es:</p>
-                <p style="font-size: 28px; font-weight: 700; letter-spacing: 4px; margin: 16px 0;">${code}</p>
-                <p>Este código expira en 10 minutos.</p>
-            </div>
-        `;
+                const subject = "Código de verificación de Planzy";
+                const html = `
+                    <div style="font-family: Arial, sans-serif; line-height:1.5; color:#222;">
+                        <h2>¡Hola ${name || ""}!</h2>
+                        <p>Tu código de verificación es:</p>
+                        <p style="font-size: 28px; font-weight: 700; letter-spacing: 4px; margin: 16px 0;">${code}</p>
+                        <p>Este código expira en 10 minutos.</p>
+                    </div>
+                `;
 
-        await transporter.sendMail({
-                from,
-                to: email,
-                subject,
-                html,
-                text: `Tu código de verificación es ${code}. Expira en 10 minutos.`,
-        });
+                await transporter.sendMail({
+                        from,
+                        to: email,
+                        subject,
+                        html,
+                        text: `Tu código de verificación es ${code}. Expira en 10 minutos.`,
+                });
+        } catch (error: any) {
+                // En desarrollo, mostrar el código en consola si SMTP falla
+                if (isDevelopment || error.code === 'ECONNREFUSED' || error.code === 'ESOCKET') {
+                        console.log("=".repeat(60));
+                        console.log("📧 CÓDIGO DE VERIFICACIÓN (SMTP no disponible)");
+                        console.log("=".repeat(60));
+                        console.log(`Email: ${email}`);
+                        console.log(`Código: ${code}`);
+                        console.log("=".repeat(60));
+                        // No lanzar error en desarrollo, permitir continuar
+                        return;
+                }
+                // En producción, relanzar el error
+                throw error;
+        }
 }
 
 // --- User Actions ---
@@ -69,7 +87,13 @@ export async function getUserById(id: string) {
 export async function createUser(userData: User) {
     await connectToDatabase();
     const existing = await UserModel.findOne({ $or: [{ email: userData.email }, { id: userData.id }] });
-    if (existing) return JSON.parse(JSON.stringify(existing));
+    
+    // Si el usuario existe pero no está verificado, permitir re-registro eliminando el anterior
+    if (existing && existing.email === userData.email && !existing.isEmailVerified) {
+        await UserModel.deleteOne({ email: userData.email });
+    } else if (existing) {
+        return JSON.parse(JSON.stringify(existing));
+    }
 
     const newUser = await UserModel.create(userData);
     revalidatePath('/');
@@ -96,8 +120,24 @@ export async function sendRegisterVerificationCode(email: string) {
     user.emailVerificationExpiresAt = expiresAt;
     await user.save();
 
-    await sendVerificationEmail(user.email, user.name, code);
-    return { success: true };
+    const isDevelopment = process.env.NODE_ENV === "development" || !process.env.SMTP_HOST;
+    let emailSent = false;
+    
+    try {
+        await sendVerificationEmail(user.email, user.name, code);
+        emailSent = true;
+    } catch (error: any) {
+        // Si falla el envío pero estamos en desarrollo, continuar de todas formas
+        if (!isDevelopment && error.code !== 'ECONNREFUSED' && error.code !== 'ESOCKET') {
+            throw error;
+        }
+    }
+    
+    // Devolver el código si estamos en desarrollo o si el email no se pudo enviar
+    return { 
+        success: true, 
+        code: (isDevelopment || !emailSent) ? code : undefined 
+    };
 }
 
 export async function verifyRegisterCode(email: string, code: string) {
