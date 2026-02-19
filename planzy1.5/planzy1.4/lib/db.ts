@@ -18,7 +18,13 @@ if (!global.mongoose) {
 }
 
 async function connectToDatabase() {
+  // Limpiar caché en desarrollo para evitar problemas
+  if (process.env.NODE_ENV === "development") {
+    // No usar caché en desarrollo para evitar problemas con datos obsoletos
+  }
+  
   if (cached.conn) {
+    console.log("📦 Usando conexión en caché a MongoDB");
     return cached.conn;
   }
 
@@ -27,7 +33,9 @@ async function connectToDatabase() {
       bufferCommands: false,
     };
 
+    console.log(`🔌 Conectando a MongoDB: ${MONGODB_URI}`);
     cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {
+      console.log("✅ Conectado a MongoDB exitosamente");
       return mongoose;
     });
   }
@@ -36,6 +44,7 @@ async function connectToDatabase() {
     cached.conn = await cached.promise;
   } catch (e) {
     cached.promise = null;
+    console.error("❌ Error conectando a MongoDB:", e);
     throw e;
   }
 

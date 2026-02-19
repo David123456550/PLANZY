@@ -147,13 +147,24 @@ async function sendVerificationEmail(email: string, name: string, code: string) 
 
 export async function getUser(email: string) {
     await connectToDatabase();
+    
+    // Verificar primero cuántos usuarios hay en total
+    const totalCount = await UserModel.countDocuments({});
+    console.log(`📊 Total de usuarios en BD antes de buscar: ${totalCount}`);
+    
     console.log(`🔍 Buscando usuario con email: ${email}`);
     const user = await UserModel.findOne({ email });
+    
     if (user) {
-        console.log(`✅ Usuario encontrado: ${email}, verificado: ${user.isEmailVerified}`);
+        console.log(`⚠️ Usuario encontrado:`, {
+            email: user.email,
+            isEmailVerified: user.isEmailVerified,
+            id: user.id,
+            username: user.username
+        });
         return JSON.parse(JSON.stringify(user));
     }
-    console.log(`❌ No se encontró usuario con email: ${email}`);
+    console.log(`✅ No se encontró usuario con email: ${email}`);
     return null;
 }
 
