@@ -152,7 +152,11 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
           return
         }
 
-        const usernameBase = email.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "").toLowerCase() || `user${Date.now()}`
+        // Generar username base desde el email, asegurando que tenga al menos 3 caracteres
+        let usernameBase = email.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "").toLowerCase()
+        if (!usernameBase || usernameBase.length < 3) {
+          usernameBase = `user${Date.now()}`
+        }
         const registerUser: User = {
           id: `user-${Date.now()}`,
           name,
@@ -178,7 +182,15 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
           premiumPlan: "free",
           savedPaymentMethods: [],
         }
-        const created = await createUser(registerUser)
+        let created
+        try {
+          created = await createUser(registerUser)
+          console.log("✅ Usuario creado exitosamente:", created.email)
+        } catch (createError: any) {
+          console.error("❌ Error creando usuario:", createError)
+          throw createError // Relanzar para que se capture en el catch general
+        }
+        
         let result
         try {
           result = await sendRegisterVerificationCode(created.email)
@@ -207,6 +219,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
             })
           }
         } catch (error: any) {
+          console.error("❌ Error enviando código:", error)
           toast({
             title: language === "es" ? "Error enviando correo" : "Email error",
             description: error.message || (language === "es" 
@@ -222,10 +235,14 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
           }
         }
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Error en handleEmailAuth:", error);
+      const errorMessage = error?.message || error?.toString() || "Error desconocido";
       toast({
         title: "Error",
-        description: language === "es" ? "No se pudo procesar la autenticación" : "Authentication failed",
+        description: language === "es" 
+          ? `No se pudo procesar la autenticación: ${errorMessage}`
+          : `Authentication failed: ${errorMessage}`,
         variant: "destructive",
       })
     }

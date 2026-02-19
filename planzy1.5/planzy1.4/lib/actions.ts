@@ -150,20 +150,86 @@ export async function getUserById(id: string) {
     return null;
 }
 
-export async function createUser(userData: User) {
+async function generateUniqueUsername(baseUsername: string): Promise<string> {
     await connectToDatabase();
-    const existing = await UserModel.findOne({ $or: [{ email: userData.email }, { id: userData.id }] });
+    let username = baseUsername;
+    let counter = 1;
     
-    // Si el usuario existe pero no está verificado, permitir re-registro eliminando el anterior
-    if (existing && existing.email === userData.email && !existing.isEmailVerified) {
-        await UserModel.deleteOne({ email: userData.email });
-    } else if (existing) {
-        return JSON.parse(JSON.stringify(existing));
+    // Verificar si el username ya existe
+    while (true) {
+        const existing = await UserModel.findOne({ username });
+        if (!existing) {
+            return username;
+        }
+        // Si existe, añadir un número al final
+        username = `${baseUsername}${counter}`;
+        counter++;
+        
+        // Prevenir bucles infinitos (máximo 1000 intentos)
+        if (counter > 1000) {
+            username = `${baseUsername}${Date.now()}`;
+            break;
+        }
     }
+    
+    return username;
+}
 
-    const newUser = await UserModel.create(userData);
-    revalidatePath('/');
-    return JSON.parse(JSON.stringify(newUser));
+export async function createUser(userData: User) {
+    try {
+        await connectToDatabase();
+        const existing = await UserModel.findOne({ $or: [{ email: userData.email }, { id: userData.id }] });
+        
+        // Si el usuario existe pero no está verificado, permitir re-registro eliminando el anterior
+        if (existing && existing.email === userData.email && !existing.isEmailVerified) {
+            await UserModel.deleteOne({ email: userData.email });
+        } else if (existing) {
+            return JSON.parse(JSON.stringify(existing));
+        }
+
+        // Asegurar que el username sea único
+        const uniqueUsername = await generateUniqueUsername(userData.username);
+        userData.username = uniqueUsername;
+
+        try {
+            const newUser = await UserModel.create(userData);
+            revalidatePath('/');
+            return JSON.parse(JSON.stringify(newUser));
+        } catch (error: any) {
+            console.error("Error creando usuario:", error);
+            
+            // Si aún hay error de duplicado (por ejemplo, username), intentar con un username completamente único
+            if (error.code === 11000) {
+                if (error.keyPattern?.username) {
+                    const fallbackUsername = `${userData.username}_${Date.now()}`;
+                    userData.username = fallbackUsername;
+                    try {
+                        const newUser = await UserModel.create(userData);
+                        revalidatePath('/');
+                        return JSON.parse(JSON.stringify(newUser));
+                    } catch (retryError: any) {
+                        console.error("Error en segundo intento:", retryError);
+                        throw new Error(`No se pudo crear el usuario. Error: ${retryError.message || 'Desconocido'}`);
+                    }
+                } else if (error.keyPattern?.email) {
+                    throw new Error("Ya existe una cuenta con este correo electrónico");
+                } else {
+                    throw new Error(`Error de duplicado: ${JSON.stringify(error.keyPattern)}`);
+                }
+            }
+            
+            // Otros errores
+            throw new Error(`Error al crear usuario: ${error.message || 'Error desconocido'}`);
+        }
+    } catch (error: any) {
+        console.error("Error en createUser:", error);
+        // Si el error ya es un Error con mensaje, relanzarlo
+        if (error instanceof Error) {
+            throw error;
+        }
+        // Si no, crear un nuevo Error con el mensaje
+        throw new Error(`Error al crear usuario: ${error.message || 'Error desconocido'}`);
+    }
 }
 
 export async function updateUser(id: string, updates: Partial<User>) {
