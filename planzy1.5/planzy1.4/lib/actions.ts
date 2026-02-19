@@ -306,9 +306,20 @@ export async function deleteAllUnverifiedUsers() {
 
 export async function deleteAllUsers() {
     await connectToDatabase();
+    
+    // Verificar antes de eliminar
+    const beforeCount = await UserModel.countDocuments({});
+    console.log(`🗑️ Eliminando usuarios. Total antes: ${beforeCount}`);
+    
     const result = await UserModel.deleteMany({});
+    
+    // Verificar después de eliminar
+    const afterCount = await UserModel.countDocuments({});
+    console.log(`✅ Eliminación completada. Total después: ${afterCount}`);
+    console.log(`📊 Usuarios eliminados: ${result.deletedCount}`);
+    
     revalidatePath('/');
-    return { success: true, deletedCount: result.deletedCount };
+    return { success: true, deletedCount: result.deletedCount, beforeCount, afterCount };
 }
 
 export async function getAllUsers() {
