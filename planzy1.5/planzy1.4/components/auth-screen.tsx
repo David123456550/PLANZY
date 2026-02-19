@@ -218,8 +218,8 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
               title: language === "es" ? "Código generado" : "Code generated",
               description:
                 language === "es"
-                  ? `Código: ${result.code} (correo no enviado - configura RESEND_API_KEY en .env)`
-                  : `Code: ${result.code} (email not sent - configure RESEND_API_KEY in .env)`,
+                  ? `Código: ${result.code} (Resend en modo prueba solo envía a tu email. Usa este código para continuar.)`
+                  : `Code: ${result.code} (Resend trial only sends to your email. Use this code to continue.)`,
               variant: "default",
             })
           }

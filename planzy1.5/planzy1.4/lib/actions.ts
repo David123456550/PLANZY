@@ -93,10 +93,32 @@ async function sendVerificationEmail(email: string, name: string, code: string) 
     </div>
   `;
 
-  // 1. Usar Resend si hay API key (no requiere SMTP)
+  // 1. Usar SMTP (Gmail, etc.) si está configurado
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
+  const smtpHost = process.env.SMTP_HOST;
+  const hasSmtp = smtpUser && smtpPass && smtpHost && smtpHost !== "127.0.0.1";
+
+  // 2. Usar Resend si hay API key y no hay SMTP configurado
   const resendApiKey = process.env.RESEND_API_KEY;
-  console.log("🔍 Verificando RESEND_API_KEY:", resendApiKey ? `Configurada (${resendApiKey.substring(0, 10)}...)` : "NO CONFIGURADA");
-  console.log("🔍 Variables de entorno disponibles:", Object.keys(process.env).filter(k => k.includes('RESEND') || k.includes('SMTP')).join(', '));
+  
+  if (hasSmtp) {
+    try {
+      const transporter = buildMailTransport();
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM || smtpUser,
+        to: email,
+        subject,
+        html,
+        text: `Tu código de verificación es ${code}. Expira en 10 minutos.`,
+      });
+      console.log(`✅ Correo enviado vía SMTP (${smtpHost}) a ${email}`);
+      return;
+    } catch (error: any) {
+      console.error("❌ Error enviando correo con SMTP:", error.message);
+      throw error;
+    }
+  }
   
   if (resendApiKey) {
     try {
@@ -111,7 +133,7 @@ async function sendVerificationEmail(email: string, name: string, code: string) 
     }
   }
 
-  // 2. Usar SMTP (Mailhog, Mailpit, Gmail, etc.)
+  // 3. Fallback: SMTP local (Mailhog) o mostrar código en consola
   const isDevelopment = process.env.NODE_ENV === "development";
   try {
     const transporter = buildMailTransport();
@@ -134,8 +156,7 @@ async function sendVerificationEmail(email: string, name: string, code: string) 
       console.log(`Email: ${email}`);
       console.log(`Código: ${code}`);
       console.log("=".repeat(60));
-      console.log("💡 Para enviar correos reales, configura RESEND_API_KEY en .env");
-      console.log("   Obtén tu API key gratis en: https://resend.com/api-keys");
+      console.log("💡 Para enviar correos: configura Gmail SMTP o RESEND_API_KEY en .env");
       console.log("=".repeat(60));
       // No lanzar error en desarrollo, permitir continuar
       return;
@@ -352,36 +373,36 @@ export async function sendRegisterVerificationCode(email: string) {
         errorMessage = error.message;
         console.error(`❌ Error enviando correo a ${email}:`, errorMessage);
         
-        // Si hay RESEND_API_KEY configurada pero falla, es un error real
-        if (process.env.RESEND_API_KEY) {
-            throw new Error(`No se pudo enviar el correo: ${errorMessage}. Verifica tu RESEND_API_KEY en .env`);
+        // Resend 403: solo permite enviar al email de la cuenta en modo prueba
+        const isResend403 = errorMessage?.includes("403") || errorMessage?.includes("only send testing emails");
+        if (isResend403) {
+            console.log("=".repeat(60));
+            console.log("⚠️  Resend en modo prueba: solo permite enviar a tu email (davidgcbb@gmail.com)");
+            console.log("   Para enviar a otros correos, verifica un dominio en resend.com/domains");
+            console.log("=".repeat(60));
+            console.log(`📧 Código de verificación para ${email}: ${code}`);
+            console.log("=".repeat(60));
+            // No lanzar error - devolver el código para que el usuario pueda continuar
+            return { success: true, code, emailSent: false };
         }
         
-        // Si estamos en desarrollo y no hay SMTP configurado, mostrar código en consola
-        if (isDevelopment) {
-            console.log("=".repeat(60));
-            console.log("⚠️  CORREO NO ENVIADO - Configura RESEND_API_KEY para enviar correos reales");
-            console.log("=".repeat(60));
-            console.log(`Email destino: ${email}`);
-            console.log(`Código de verificación: ${code}`);
-            console.log("=".repeat(60));
-            console.log("📝 Para enviar correos reales:");
-            console.log("   1. Regístrate en https://resend.com");
-            console.log("   2. Obtén tu API key en https://resend.com/api-keys");
-            console.log("   3. Agrega RESEND_API_KEY=tu_key_aqui en tu archivo .env");
-            console.log("=".repeat(60));
-        } else {
-            // En producción, lanzar error si no se pudo enviar
+        // Si hay RESEND_API_KEY pero falla por otro motivo
+        if (process.env.RESEND_API_KEY) {
             throw new Error(`No se pudo enviar el correo: ${errorMessage}`);
         }
+        
+        // Sin RESEND: mostrar código en consola (desarrollo)
+        if (isDevelopment) {
+            console.log("=".repeat(60));
+            console.log(`📧 Código de verificación: ${code}`);
+            console.log("=".repeat(60));
+            return { success: true, code, emailSent: false };
+        }
+        
+        throw new Error(`No se pudo enviar el correo: ${errorMessage}`);
     }
     
-    // Devolver el código solo si estamos en desarrollo y el correo no se envió
-    return { 
-        success: true, 
-        code: (isDevelopment && !emailSent) ? code : undefined,
-        emailSent
-    };
+    return { success: true, code: undefined, emailSent };
 }
 
 export async function verifyRegisterCode(email: string, code: string) {
