@@ -26,7 +26,7 @@ export function MainApp() {
   const [showChats, setShowChats] = useState(false)
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null)
   const [animationKey, setAnimationKey] = useState(0)
-  const { setUser, setAuthenticated, chats, privateChats, joinedPlans, refreshChats } = useAppStore()
+  const { setUser, setAuthenticated, chats, privateChats, refreshChats } = useAppStore()
 
   useEffect(() => {
     void refreshChats()
@@ -36,8 +36,7 @@ export function MainApp() {
     return () => clearInterval(interval)
   }, [refreshChats])
 
-  const userChats = chats.filter((chat) => joinedPlans.includes(chat.planId || ""))
-  const totalGroupUnread = userChats.reduce((acc, chat) => acc + chat.unreadCount, 0)
+  const totalGroupUnread = chats.reduce((acc, chat) => acc + chat.unreadCount, 0)
   const totalPrivateUnread = privateChats.reduce((acc, chat) => acc + chat.unreadCount, 0)
   const totalUnread = totalGroupUnread + totalPrivateUnread
 
@@ -101,23 +100,35 @@ export function MainApp() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <main key={animationKey} className="flex-1 pb-24 animate-fade-in">
-        {renderScreen()}
-      </main>
+    <div className="flex min-h-dvh flex-col bg-background">
+      <div className="mx-auto flex min-h-dvh w-full max-w-5xl flex-1 flex-col border-x border-transparent lg:border-border/50 lg:shadow-sm">
+        <main
+          key={animationKey}
+          className="flex-1 pb-28 pt-[env(safe-area-inset-top,0px)] motion-safe:animate-fade-in sm:pb-32"
+        >
+          {renderScreen()}
+        </main>
+      </div>
+
       <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
 
-      <button
-        onClick={() => setShowChats(true)}
-        className="fixed bottom-24 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#1a95a4] text-white shadow-lg hover:bg-[#1a95a4]/90 transition-colors"
-      >
-        <MessageCircle className="h-6 w-6" />
-        {totalUnread > 0 && (
-          <Badge className="absolute -right-1 -top-1 h-5 min-w-5 rounded-full bg-[#ef7418] p-0 text-[10px] flex items-center justify-center">
-            {totalUnread > 99 ? "99+" : totalUnread}
-          </Badge>
-        )}
-      </button>
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 top-0 z-50 flex justify-center">
+        <div className="relative h-full w-full max-w-5xl">
+          <button
+            type="button"
+            onClick={() => setShowChats(true)}
+            className="pointer-events-auto absolute bottom-24 right-3 flex h-14 w-14 min-h-[3.5rem] min-w-[3.5rem] items-center justify-center rounded-full bg-[#1a95a4] text-white shadow-lg transition-colors hover:bg-[#1a95a4]/90 sm:bottom-28 sm:right-5 md:bottom-32 touch-manipulation"
+            style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
+          >
+            <MessageCircle className="h-6 w-6" />
+            {totalUnread > 0 && (
+              <Badge className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#ef7418] p-0 text-[10px]">
+                {totalUnread > 99 ? "99+" : totalUnread}
+              </Badge>
+            )}
+          </button>
+        </div>
+      </div>
 
       <PlanDetailSheet plan={selectedPlan} onClose={() => setSelectedPlan(null)} onEditPlan={handleEditPlan} />
       <NotificationsSheet open={showNotifications} onOpenChange={setShowNotifications} />

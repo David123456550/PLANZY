@@ -13,14 +13,13 @@ import type { Chat } from "@/lib/types"
 import { format } from "date-fns"
 
 export function ChatsScreen() {
-  const { chats, privateChats, joinedPlans, language } = useAppStore()
+  const { chats, privateChats, language } = useAppStore()
   const t = useTranslation(language)
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null)
   const [selectedPrivateChat, setSelectedPrivateChat] = useState<Chat | null>(null)
 
-  // Only show chats for plans user has joined
-  const userChats = chats.filter((chat) => joinedPlans.includes(chat.planId || ""))
-  const totalGroupUnread = userChats.reduce((acc, chat) => acc + chat.unreadCount, 0)
+  const groupChats = chats
+  const totalGroupUnread = groupChats.reduce((acc, chat) => acc + chat.unreadCount, 0)
   const totalPrivateUnread = privateChats.reduce((acc, chat) => acc + chat.unreadCount, 0)
   const totalUnread = totalGroupUnread + totalPrivateUnread
 
@@ -44,7 +43,7 @@ export function ChatsScreen() {
     <div className="flex flex-col">
       {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex items-center justify-between px-5 py-4">
+        <div className="flex items-center justify-between px-4 py-3 sm:px-5 sm:py-4 md:px-6">
           <h1 className="text-lg font-semibold flex items-center gap-2">
             <MessageCircle className="h-5 w-5 text-[#1a95a4]" />
             {t.chats}
@@ -82,8 +81,8 @@ export function ChatsScreen() {
         </TabsList>
 
         <TabsContent value="all" className="mt-0">
-          {userChats.length === 0 && privateChats.length === 0 ? (
-            <div className="flex h-64 flex-col items-center justify-center px-5 text-center">
+          {groupChats.length === 0 && privateChats.length === 0 ? (
+            <div className="flex h-64 flex-col items-center justify-center px-4 text-center sm:px-5 md:px-6">
               <MessageCircle className="mb-4 h-12 w-12 text-muted-foreground/50" />
               <p className="font-medium">{t.noChats}</p>
               <p className="mt-1 text-sm text-muted-foreground">{t.joinPlanToChat}</p>
@@ -95,7 +94,7 @@ export function ChatsScreen() {
                 return (
                   <button
                     key={chat.id}
-                    className="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-muted/50"
+                    className="flex w-full items-center gap-4 px-4 py-3 sm:px-5 sm:py-4 md:px-6 text-left transition-colors hover:bg-muted/50"
                     onClick={() => handleSelectPrivateChat(chat)}
                   >
                     <Avatar className="h-12 w-12">
@@ -117,12 +116,12 @@ export function ChatsScreen() {
                   </button>
                 )
               })}
-              {userChats.map((chat) => {
+              {groupChats.map((chat) => {
                 const lastMsg = chat.messages[chat.messages.length - 1]
                 return (
                   <button
                     key={chat.id}
-                    className="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-muted/50"
+                    className="flex w-full items-center gap-4 px-4 py-3 sm:px-5 sm:py-4 md:px-6 text-left transition-colors hover:bg-muted/50"
                     onClick={() => handleSelectChat(chat)}
                   >
                     <div className="relative">
@@ -160,20 +159,20 @@ export function ChatsScreen() {
         </TabsContent>
 
         <TabsContent value="groups" className="mt-0">
-          {userChats.length === 0 ? (
-            <div className="flex h-64 flex-col items-center justify-center px-5 text-center">
+          {groupChats.length === 0 ? (
+            <div className="flex h-64 flex-col items-center justify-center px-4 text-center sm:px-5 md:px-6">
               <Users className="mb-4 h-12 w-12 text-muted-foreground/50" />
               <p className="font-medium">{t.noChats}</p>
               <p className="mt-1 text-sm text-muted-foreground">{t.joinPlanToChat}</p>
             </div>
           ) : (
             <div className="divide-y">
-              {userChats.map((chat) => {
+              {groupChats.map((chat) => {
                 const lastMsg = chat.messages[chat.messages.length - 1]
                 return (
                   <button
                     key={chat.id}
-                    className="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-muted/50"
+                    className="flex w-full items-center gap-4 px-4 py-3 sm:px-5 sm:py-4 md:px-6 text-left transition-colors hover:bg-muted/50"
                     onClick={() => handleSelectChat(chat)}
                   >
                     <Avatar className="h-12 w-12">
@@ -207,7 +206,7 @@ export function ChatsScreen() {
 
         <TabsContent value="private" className="mt-0">
           {privateChats.length === 0 ? (
-            <div className="flex h-64 flex-col items-center justify-center px-5 text-center">
+            <div className="flex h-64 flex-col items-center justify-center px-4 text-center sm:px-5 md:px-6">
               <User className="mb-4 h-12 w-12 text-muted-foreground/50" />
               <p className="font-medium">{t.privateChats}</p>
               <p className="mt-1 text-sm text-muted-foreground">{t.startConversation}</p>
@@ -219,7 +218,7 @@ export function ChatsScreen() {
                 return (
                   <button
                     key={chat.id}
-                    className="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-muted/50"
+                    className="flex w-full items-center gap-4 px-4 py-3 sm:px-5 sm:py-4 md:px-6 text-left transition-colors hover:bg-muted/50"
                     onClick={() => handleSelectPrivateChat(chat)}
                   >
                     <Avatar className="h-12 w-12">

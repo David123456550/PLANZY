@@ -78,7 +78,7 @@ export function SearchScreen({ onPlanSelect }: SearchScreenProps) {
   return (
     <div className="flex flex-col">
       {/* Search header */}
-      <header className="sticky top-0 z-40 border-b bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-40 border-b bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-5 md:px-6 md:py-4">
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -274,14 +274,14 @@ export function SearchScreen({ onPlanSelect }: SearchScreenProps) {
       </header>
 
       {/* Results */}
-      <div className="px-4 py-4">
+      <div className="px-4 py-4 sm:px-5 md:px-6 md:py-6">
         {query || activeFiltersCount > 0 ? (
           <>
-            <p className="mb-4 text-sm text-muted-foreground">
+            <p className="mb-4 text-sm text-muted-foreground md:text-base">
               {filteredPlans.length} {t.results}
               {query && ` para "${query}"`}
             </p>
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
               {filteredPlans.map((plan) => (
                 <PlanCard key={plan.id} plan={plan} onClick={() => onPlanSelect(plan)} />
               ))}

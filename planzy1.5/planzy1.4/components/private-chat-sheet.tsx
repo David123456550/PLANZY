@@ -113,7 +113,7 @@ export function PrivateChatSheet({ chat, open, onOpenChange }: PrivateChatSheetP
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="flex w-full flex-col p-0 sm:max-w-md">
+        <SheetContent side="right" className="flex h-full w-full flex-col p-0">
           <SheetHeader className="border-b px-5 py-4 shrink-0">
             <div className="flex items-center gap-3">
               <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>

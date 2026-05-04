@@ -20,7 +20,7 @@ export function PlanCard({ plan, onClick }: PlanCardProps) {
 
   return (
     <Card className="cursor-pointer overflow-hidden transition-all hover:shadow-lg" onClick={onClick}>
-      <div className="relative h-44">
+      <div className="relative h-40 sm:h-44 md:h-48">
         <div className="h-full w-full bg-cover bg-center" style={{ backgroundImage: `url(${plan.image})` }} />
         <Badge className="absolute left-4 top-4" style={{ backgroundColor: "#1a95a4" }}>
           {plan.category}
@@ -32,9 +32,11 @@ export function PlanCard({ plan, onClick }: PlanCardProps) {
           </Badge>
         )}
       </div>
-      <CardContent className="p-5">
-        <h3 className="mb-2 text-base font-semibold line-clamp-1">{plan.title}</h3>
-        <p className="mb-4 text-sm leading-relaxed text-muted-foreground line-clamp-2">{plan.description}</p>
+      <CardContent className="p-4 sm:p-5">
+        <h3 className="mb-2 text-base font-semibold line-clamp-1 md:text-lg">{plan.title}</h3>
+        <p className="mb-4 text-sm leading-relaxed text-muted-foreground line-clamp-2 md:text-[0.9375rem]">
+          {plan.description}
+        </p>
         <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
           <div className="flex items-center gap-1.5">
             <Calendar className="h-3.5 w-3.5" />
@@ -44,7 +46,7 @@ export function PlanCard({ plan, onClick }: PlanCardProps) {
           </div>
           <div className="flex items-center gap-1.5">
             <MapPin className="h-3.5 w-3.5" />
-            <span className="truncate max-w-[120px]">{plan.location.name}</span>
+            <span className="max-w-[140px] truncate sm:max-w-[200px] md:max-w-[280px]">{plan.location.name}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Users className="h-3.5 w-3.5" />

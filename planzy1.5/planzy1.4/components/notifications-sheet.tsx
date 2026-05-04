@@ -34,7 +34,7 @@ export function NotificationsSheet({ open, onOpenChange }: NotificationsSheetPro
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-md">
+      <SheetContent side="right" className="h-full w-full">
         <SheetHeader>
           <SheetTitle>Notificaciones</SheetTitle>
         </SheetHeader>

@@ -50,7 +50,7 @@ export function FeedScreen({
     <div className="flex flex-col">
       {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex items-center justify-between px-5 py-4">
+        <div className="flex items-center justify-between px-4 py-3 sm:px-5 sm:py-4 md:px-6">
           <PlanzyLogo size="sm" />
           <div className="flex items-center gap-3">
             <Button
@@ -113,11 +113,11 @@ export function FeedScreen({
       </header>
 
       {/* Welcome message */}
-      <div className="px-5 py-5">
-        <h1 className="text-xl font-bold">
+      <div className="px-4 py-4 sm:px-5 sm:py-5 md:px-6">
+        <h1 className="text-xl font-bold sm:text-2xl md:text-3xl">
           {language === "es" ? "Hola" : "Hi"}, {user?.name.split(" ")[0]} 👋
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="mt-1 text-sm text-muted-foreground md:text-base">
           {language === "es"
             ? `Descubre planes cerca de ti en ${user?.location?.city || "tu zona"}`
             : `Discover plans near you in ${user?.location?.city || "your area"}`}
@@ -128,11 +128,11 @@ export function FeedScreen({
       <CategoryFilter selected={selectedCategory} onSelect={setSelectedCategory} />
 
       {/* Plans list */}
-      <div className="px-5 py-5">
-        <h2 className="mb-5 text-lg font-semibold" style={{ color: "#1a95a4" }}>
+      <div className="px-4 pb-8 pt-2 sm:px-5 sm:pb-10 md:px-6">
+        <h2 className="mb-4 text-lg font-semibold sm:mb-5 sm:text-xl" style={{ color: "#1a95a4" }}>
           {language === "es" ? "Planes en tu zona" : "Plans in your area"}
         </h2>
-        <div className="space-y-5">
+        <div className="grid grid-cols-1 gap-4 sm:gap-5 lg:grid-cols-2 lg:gap-6">
           {filteredPlans.map((plan) => (
             <PlanCard key={plan.id} plan={plan} onClick={() => onPlanSelect(plan)} />
           ))}

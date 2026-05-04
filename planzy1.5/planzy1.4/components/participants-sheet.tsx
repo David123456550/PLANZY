@@ -23,7 +23,7 @@ export function ParticipantsSheet({ participants, planTitle, open, onOpenChange 
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full p-0 sm:max-w-md">
+      <SheetContent side="right" className="h-full w-full p-0">
         <SheetHeader className="border-b px-5 py-4">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>

@@ -152,7 +152,10 @@ export function PlanDetailSheet({ plan, onClose, onEditPlan }: PlanDetailSheetPr
   return (
     <>
       <Sheet open={!!plan && !profileOpen} onOpenChange={() => onClose()}>
-        <SheetContent side="bottom" className="h-[90vh] overflow-auto rounded-t-2xl p-0">
+        <SheetContent
+          side="bottom"
+          className="h-[90vh] overflow-auto rounded-t-2xl p-0 md:left-1/2 md:h-[min(85vh,800px)] md:max-w-2xl md:-translate-x-1/2 md:rounded-2xl md:border md:shadow-2xl"
+        >
           <SheetHeader className="sr-only">
             <SheetTitle>{plan.title}</SheetTitle>
           </SheetHeader>

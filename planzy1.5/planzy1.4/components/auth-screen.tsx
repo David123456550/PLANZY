@@ -438,7 +438,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
   if (step === "reset-password") {
     return (
       <div className="min-h-screen bg-background">
-        <div className="container mx-auto flex min-h-screen flex-col items-center justify-center px-5 py-8">
+        <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col items-center justify-center px-4 py-8 sm:max-w-xl sm:px-6 md:max-w-2xl md:px-8">
           <div className="mb-8">
             <PlanzyLogo size="lg" />
           </div>
@@ -498,7 +498,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
   if (step === "forgot-password") {
     return (
       <div className="min-h-screen bg-background">
-        <div className="container mx-auto flex min-h-screen flex-col items-center justify-center px-5 py-8">
+        <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col items-center justify-center px-4 py-8 sm:max-w-xl sm:px-6 md:max-w-2xl md:px-8">
           <div className="mb-8">
             <PlanzyLogo size="lg" />
           </div>
@@ -544,7 +544,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
   if (step === "verification") {
     return (
       <div className="min-h-screen bg-background">
-        <div className="container mx-auto flex min-h-screen flex-col items-center justify-center px-5 py-8">
+        <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col items-center justify-center px-4 py-8 sm:max-w-xl sm:px-6 md:max-w-2xl md:px-8">
           <div className="mb-8">
             <PlanzyLogo size="lg" />
           </div>
@@ -611,7 +611,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto flex min-h-screen flex-col items-center justify-center px-5 py-8">
+      <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col items-center justify-center px-4 py-8 sm:max-w-xl sm:px-6 md:max-w-2xl md:px-8">
         <div className="mb-8">
           <PlanzyLogo size="lg" />
         </div>

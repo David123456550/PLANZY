@@ -12,7 +12,7 @@ export function SplashScreen() {
   }, [])
 
   return (
-    <div className="fixed inset-0 flex flex-col items-center justify-center bg-background">
+    <div className="fixed inset-0 flex min-h-dvh flex-col items-center justify-center bg-background px-4 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
       <div className={`transition-all duration-700 ${animate ? "scale-100 opacity-100" : "scale-75 opacity-0"}`}>
         <PlanzyLogo size="xl" />
       </div>

@@ -273,15 +273,15 @@ export function CreatePlanScreen({ onBack, editPlan }: CreatePlanScreenProps) {
   }
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col pb-4">
       {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex items-center justify-between px-5 py-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={onBack}>
+        <div className="flex items-center justify-between px-4 py-3 sm:px-5 sm:py-4 md:px-6">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0 touch-manipulation">
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <h1 className="text-lg font-semibold">
+            <h1 className="text-base font-semibold sm:text-lg md:text-xl">
               {isEditing
                 ? language === "es"
                   ? "Editar plan"
@@ -300,12 +300,12 @@ export function CreatePlanScreen({ onBack, editPlan }: CreatePlanScreenProps) {
       </header>
 
       {/* Form */}
-      <div className="px-5 py-6 space-y-6">
+      <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-5 sm:px-5 sm:py-6 md:px-6 md:py-8">
         {/* Image upload */}
         <Card className="overflow-hidden">
           <button
             type="button"
-            className="flex h-44 w-full items-center justify-center bg-muted"
+            className="flex h-40 w-full items-center justify-center bg-muted sm:h-44 md:h-52 touch-manipulation"
             onClick={() => fileInputRef.current?.click()}
           >
             {imagePreview ? (

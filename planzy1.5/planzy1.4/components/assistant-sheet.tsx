@@ -123,7 +123,7 @@ export function AssistantSheet({ open, onOpenChange }: AssistantSheetProps) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
+      <SheetContent side="right" className="flex h-full w-full flex-col">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-3">
             <div className="relative">

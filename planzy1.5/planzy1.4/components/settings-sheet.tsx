@@ -137,7 +137,7 @@ export function SettingsSheet({ open, onOpenChange }: SettingsSheetProps) {
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col overflow-hidden">
+        <SheetContent side="right" className="flex h-full w-full flex-col overflow-hidden p-0">
           <SheetHeader className="px-6 pt-6 pb-4 shrink-0 border-b">
             <SheetTitle>{t.settings}</SheetTitle>
           </SheetHeader>

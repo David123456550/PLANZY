@@ -78,7 +78,7 @@ export function MapScreen({ onPlanSelect }: MapScreenProps) {
   }
 
   return (
-    <div className="relative h-[calc(100vh-80px)]">
+    <div className="relative h-[calc(100dvh-5.5rem)] min-h-[300px] w-full sm:h-[calc(100dvh-6rem)] sm:min-h-[360px] md:min-h-[440px]">
       <div className="absolute inset-0 bg-muted">
         {/* Map background with OpenStreetMap tile style */}
         <div
@@ -145,8 +145,8 @@ export function MapScreen({ onPlanSelect }: MapScreenProps) {
       </div>
 
       {/* Header overlay */}
-      <div className="absolute left-0 right-0 top-0 z-20 bg-background/80 px-4 py-3 backdrop-blur">
-        <div className="flex items-center justify-between">
+      <div className="absolute left-0 right-0 top-0 z-20 bg-background/80 px-4 py-3 backdrop-blur sm:px-5 md:px-6">
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
           <div>
             <h1 className="text-lg font-semibold">{t.mapTitle}</h1>
             <p className="text-sm text-muted-foreground">
@@ -168,7 +168,7 @@ export function MapScreen({ onPlanSelect }: MapScreenProps) {
 
       {/* Selected plan card */}
       {selectedMarker && (
-        <Card className="absolute bottom-4 left-4 right-4 z-30 shadow-lg">
+        <Card className="absolute bottom-4 left-4 right-4 z-30 mx-auto max-w-lg shadow-lg md:left-1/2 md:right-auto md:w-[calc(100%-2rem)] md:-translate-x-1/2">
           <CardContent className="p-4">
             <div className="flex items-start gap-3">
               <div

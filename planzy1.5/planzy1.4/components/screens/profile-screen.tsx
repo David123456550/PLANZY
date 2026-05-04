@@ -50,7 +50,7 @@ export function ProfileScreen({ onPlanSelect, onSettingsClick, onAssistantClick 
     <div className="flex flex-col">
       {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex items-center justify-between px-5 py-4">
+        <div className="flex items-center justify-between px-4 py-3 sm:px-5 sm:py-4 md:px-6">
           <h1 className="text-lg font-semibold">{t.myProfile}</h1>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={onAssistantClick}>
@@ -64,8 +64,8 @@ export function ProfileScreen({ onPlanSelect, onSettingsClick, onAssistantClick 
       </header>
 
       {/* Profile info */}
-      <div className="px-5 py-6">
-        <div className="flex items-start gap-4">
+      <div className="px-4 py-5 sm:px-5 sm:py-6 md:px-6">
+        <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-start md:gap-6">
           <div className="relative">
             <Avatar className="h-20 w-20 border-2 border-[#1a95a4]">
               <AvatarImage src={user.avatar || "/placeholder.svg"} />
@@ -146,14 +146,14 @@ export function ProfileScreen({ onPlanSelect, onSettingsClick, onAssistantClick 
 
       {/* Tabs */}
       <Tabs defaultValue="created" className="flex-1">
-        <TabsList className="mx-5 grid w-auto grid-cols-3">
+        <TabsList className="mx-4 grid w-auto grid-cols-3 sm:mx-5 md:mx-6">
           <TabsTrigger value="created">{language === "es" ? "Creados" : "Created"}</TabsTrigger>
           <TabsTrigger value="joined">{language === "es" ? "Apuntado" : "Joined"}</TabsTrigger>
           <TabsTrigger value="favorites">{language === "es" ? "Favoritos" : "Favorites"}</TabsTrigger>
         </TabsList>
-        <TabsContent value="created" className="px-5 py-5">
+        <TabsContent value="created" className="px-4 py-4 sm:px-5 sm:py-5 md:px-6">
           {createdPlans.length > 0 ? (
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
               {createdPlans.map((plan) => (
                 <PlanCard key={plan.id} plan={plan} onClick={() => onPlanSelect(plan)} />
               ))}
@@ -167,9 +167,9 @@ export function ProfileScreen({ onPlanSelect, onSettingsClick, onAssistantClick 
             </div>
           )}
         </TabsContent>
-        <TabsContent value="joined" className="px-5 py-5">
+        <TabsContent value="joined" className="px-4 py-4 sm:px-5 sm:py-5 md:px-6">
           {myJoinedPlans.length > 0 ? (
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
               {myJoinedPlans.map((plan) => (
                 <PlanCard key={plan.id} plan={plan} onClick={() => onPlanSelect(plan)} />
               ))}
@@ -183,9 +183,9 @@ export function ProfileScreen({ onPlanSelect, onSettingsClick, onAssistantClick 
             </div>
           )}
         </TabsContent>
-        <TabsContent value="favorites" className="px-5 py-5">
+        <TabsContent value="favorites" className="px-4 py-4 sm:px-5 sm:py-5 md:px-6">
           {favoritePlans.length > 0 ? (
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
               {favoritePlans.map((plan) => (
                 <PlanCard key={plan.id} plan={plan} onClick={() => onPlanSelect(plan)} />
               ))}

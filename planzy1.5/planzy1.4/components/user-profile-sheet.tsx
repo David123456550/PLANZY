@@ -115,7 +115,7 @@ export function UserProfileSheet({ user: profileUser, open, onOpenChange, onPlan
   return (
     <>
       <Sheet open={open && !chatOpen} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-full overflow-auto p-0 sm:max-w-md">
+        <SheetContent side="right" className="h-full w-full overflow-auto p-0">
           <SheetHeader className="sr-only">
             <SheetTitle>{profileUser.name}</SheetTitle>
           </SheetHeader>

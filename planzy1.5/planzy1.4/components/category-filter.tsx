@@ -25,7 +25,7 @@ interface CategoryFilterProps {
 export function CategoryFilter({ selected, onSelect }: CategoryFilterProps) {
   return (
     <ScrollArea className="w-full whitespace-nowrap">
-      <div className="flex gap-2 px-4 py-2">
+      <div className="flex gap-2 px-4 py-2 sm:px-5 md:px-6">
         {categories.map((category) => {
           const Icon = category.icon
           const isSelected = selected === category.id
