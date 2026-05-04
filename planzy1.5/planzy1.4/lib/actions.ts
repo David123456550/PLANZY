@@ -6,6 +6,8 @@ import { User as UserModel } from "@/lib/models/User";
 import { Chat as ChatModel } from "@/lib/models/Chat";
 import { Tournament as TournamentModel } from "@/lib/models/Tournament";
 import { WalletTransaction as WalletTransactionModel } from "@/lib/models/WalletTransaction";
+import { Notification as NotificationModel } from "@/lib/models/Notification";
+import { getPlanzyAdminEmail } from "@/lib/admin-config";
 import { revalidatePath } from "next/cache";
 import type { User, Plan, Tournament, WalletTransaction, Chat, Message } from "@/lib/types";
 import nodemailer from "nodemailer";
@@ -308,47 +310,88 @@ export async function updateUser(id: string, updates: Partial<User>) {
     return JSON.parse(JSON.stringify(updated));
 }
 
-// Funciones de limpieza de usuarios (útil para desarrollo/testing)
-export async function deleteUserByEmail(email: string, includeVerified: boolean = true) {
+// --- Administrador único (correo en lib/admin-config.ts / env) ---
+
+async function assertPlanzyAdminPassword(adminPassword: string): Promise<void> {
+    const email = getPlanzyAdminEmail();
+    const escaped = email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     await connectToDatabase();
-    const query: any = { email };
+    const adminUser = await UserModel.findOne({
+        email: { $regex: new RegExp(`^${escaped}$`, "i") },
+    });
+    if (!adminUser?.password || adminUser.password !== adminPassword) {
+        throw new Error("Credenciales de administrador inválidas");
+    }
+}
+
+export async function getAllUsersForAdmin(adminPassword: string) {
+    await assertPlanzyAdminPassword(adminPassword);
+    await connectToDatabase();
+    const users = await UserModel.find({}).select("email isEmailVerified createdAt").sort({ createdAt: -1 });
+    return JSON.parse(JSON.stringify(users));
+}
+
+export async function deleteUserByEmailForAdmin(adminPassword: string, email: string, includeVerified: boolean = true) {
+    await assertPlanzyAdminPassword(adminPassword);
+    await connectToDatabase();
+    const query: Record<string, unknown> = { email };
     if (!includeVerified) {
         query.isEmailVerified = false;
     }
     const result = await UserModel.deleteOne(query);
-    revalidatePath('/');
+    revalidatePath("/");
     return { success: true, deletedCount: result.deletedCount };
 }
 
-export async function deleteAllUnverifiedUsers() {
+export async function deleteAllUnverifiedUsersForAdmin(adminPassword: string) {
+    await assertPlanzyAdminPassword(adminPassword);
     await connectToDatabase();
     const result = await UserModel.deleteMany({ isEmailVerified: false });
-    revalidatePath('/');
+    revalidatePath("/");
     return { success: true, deletedCount: result.deletedCount };
 }
 
-export async function deleteAllUsers() {
+export async function deleteAllUsersForAdmin(adminPassword: string) {
+    await assertPlanzyAdminPassword(adminPassword);
     await connectToDatabase();
-    
-    // Verificar antes de eliminar
     const beforeCount = await UserModel.countDocuments({});
-    console.log(`🗑️ Eliminando usuarios. Total antes: ${beforeCount}`);
-    
     const result = await UserModel.deleteMany({});
-    
-    // Verificar después de eliminar
     const afterCount = await UserModel.countDocuments({});
-    console.log(`✅ Eliminación completada. Total después: ${afterCount}`);
-    console.log(`📊 Usuarios eliminados: ${result.deletedCount}`);
-    
-    revalidatePath('/');
+    revalidatePath("/");
     return { success: true, deletedCount: result.deletedCount, beforeCount, afterCount };
 }
 
-export async function getAllUsers() {
+/** Borra chats, transacciones de monedero, torneos, planes, notificaciones y usuarios. Requiere contraseña del admin y frase BORRAR TODO o DELETE ALL. */
+export async function wipeEntireApplicationDatabase(adminPassword: string, confirmationPhrase: string) {
+    await assertPlanzyAdminPassword(adminPassword);
+    const phrase = confirmationPhrase.trim().toUpperCase();
+    if (phrase !== "BORRAR TODO" && phrase !== "DELETE ALL") {
+        throw new Error('Escribe exactamente BORRAR TODO (o DELETE ALL) para confirmar');
+    }
+
     await connectToDatabase();
-    const users = await UserModel.find({}).select('email isEmailVerified createdAt').sort({ createdAt: -1 });
-    return JSON.parse(JSON.stringify(users));
+
+    const [chats, walletTx, tournaments, plans, notifications, users] = await Promise.all([
+        ChatModel.deleteMany({}),
+        WalletTransactionModel.deleteMany({}),
+        TournamentModel.deleteMany({}),
+        PlanModel.deleteMany({}),
+        NotificationModel.deleteMany({}),
+        UserModel.deleteMany({}),
+    ]);
+
+    revalidatePath("/");
+    return {
+        success: true,
+        deleted: {
+            chats: chats.deletedCount,
+            walletTransactions: walletTx.deletedCount,
+            tournaments: tournaments.deletedCount,
+            plans: plans.deletedCount,
+            notifications: notifications.deletedCount,
+            users: users.deletedCount,
+        },
+    };
 }
 
 export async function sendRegisterVerificationCode(email: string) {

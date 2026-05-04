@@ -24,6 +24,7 @@ import {
   Bot,
   Check,
   Crown,
+  AlertTriangle,
 } from "lucide-react"
 import { useAppStore } from "@/lib/store"
 import { useTheme } from "next-themes"
@@ -33,6 +34,8 @@ import { VerificationSheet } from "./verification-sheet"
 import { PaymentMethodsSheet } from "./payment-methods-sheet"
 import { AssistantSheet } from "./assistant-sheet"
 import { PremiumSheet } from "./premium-sheet"
+import { isPlanzyAdminEmail } from "@/lib/admin-config"
+import { wipeEntireApplicationDatabase } from "@/lib/actions"
 
 interface SettingsSheetProps {
   open: boolean
@@ -40,7 +43,7 @@ interface SettingsSheetProps {
 }
 
 export function SettingsSheet({ open, onOpenChange }: SettingsSheetProps) {
-  const { user, updateUser, setAuthenticated, setUser, language, setLanguage, preferredPaymentMethod, premiumPlan } =
+  const { user, updateUser, setAuthenticated, setUser, language, setLanguage, preferredPaymentMethod, premiumPlan, initialize } =
     useAppStore()
   const { theme, setTheme } = useTheme()
   const { toast } = useToast()
@@ -53,6 +56,9 @@ export function SettingsSheet({ open, onOpenChange }: SettingsSheetProps) {
   const [assistantOpen, setAssistantOpen] = useState(false)
   const [premiumOpen, setPremiumOpen] = useState(false)
   const [showSaveSuccess, setShowSaveSuccess] = useState(false)
+  const [adminWipePassword, setAdminWipePassword] = useState("")
+  const [adminWipePhrase, setAdminWipePhrase] = useState("")
+  const [adminWiping, setAdminWiping] = useState(false)
 
   const handleSave = () => {
     updateUser({ username, email, phone })
@@ -66,6 +72,45 @@ export function SettingsSheet({ open, onOpenChange }: SettingsSheetProps) {
     setUser(null)
     setAuthenticated(false)
     onOpenChange(false)
+  }
+
+  const handleAdminFullWipe = async () => {
+    if (!user || !isPlanzyAdminEmail(user.email)) return
+    setAdminWiping(true)
+    try {
+      await wipeEntireApplicationDatabase(adminWipePassword, adminWipePhrase)
+      setAdminWipePassword("")
+      setAdminWipePhrase("")
+      toast({
+        title: language === "es" ? "Base de datos vaciada" : "Database wiped",
+        description:
+          language === "es"
+            ? "Se han eliminado usuarios, planes, chats y el resto de colecciones."
+            : "Users, plans, chats, and other collections were removed.",
+      })
+      setAuthenticated(false)
+      await setUser(null)
+      useAppStore.setState({
+        plans: [],
+        joinedPlans: [],
+        favorites: [],
+        chats: [],
+        privateChats: [],
+        tournaments: [],
+        notifications: [],
+        isAuthenticated: false,
+      })
+      await initialize()
+      onOpenChange(false)
+    } catch (e: unknown) {
+      toast({
+        variant: "destructive",
+        title: language === "es" ? "Error" : "Error",
+        description: e instanceof Error ? e.message : "Error",
+      })
+    } finally {
+      setAdminWiping(false)
+    }
   }
 
   const handleLanguageChange = (value: Language) => {
@@ -325,6 +370,57 @@ export function SettingsSheet({ open, onOpenChange }: SettingsSheetProps) {
                 </div>
 
                 <Separator />
+
+                {user && isPlanzyAdminEmail(user.email) && (
+                  <>
+                    <div className="space-y-4 rounded-lg border border-destructive/40 bg-destructive/5 p-4">
+                      <h3 className="flex items-center gap-2 font-semibold text-destructive">
+                        <AlertTriangle className="h-4 w-4 shrink-0" />
+                        {language === "es" ? "Administración — borrado total" : "Admin — full wipe"}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        {language === "es"
+                          ? "Elimina usuarios, planes, chats, torneos, monedero y notificaciones. Escribe BORRAR TODO o DELETE ALL y tu contraseña de esta cuenta."
+                          : "Removes users, plans, chats, tournaments, wallet data, and notifications. Type BORRAR TODO or DELETE ALL and this account’s password."}
+                      </p>
+                      <div className="space-y-2">
+                        <Label className="text-xs">{language === "es" ? "Contraseña" : "Password"}</Label>
+                        <Input
+                          type="password"
+                          autoComplete="current-password"
+                          value={adminWipePassword}
+                          onChange={(e) => setAdminWipePassword(e.target.value)}
+                          placeholder="••••••••"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">BORRAR TODO / DELETE ALL</Label>
+                        <Input
+                          value={adminWipePhrase}
+                          onChange={(e) => setAdminWipePhrase(e.target.value)}
+                          placeholder="BORRAR TODO"
+                          autoComplete="off"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        className="w-full"
+                        disabled={adminWiping || !adminWipePassword.trim() || !adminWipePhrase.trim()}
+                        onClick={handleAdminFullWipe}
+                      >
+                        {adminWiping
+                          ? language === "es"
+                            ? "Borrando…"
+                            : "Wiping…"
+                          : language === "es"
+                            ? "Borrar toda la base de datos"
+                            : "Wipe entire database"}
+                      </Button>
+                    </div>
+                    <Separator />
+                  </>
+                )}
 
                 {/* Actions */}
                 <div className="space-y-3">
