@@ -445,6 +445,27 @@ function normalizeChat(doc: any): Chat {
     };
 }
 
+async function ensurePlanGroupChat(plan: any) {
+    const chatId = `plan-${plan.id}`;
+    const existing = await ChatModel.findOne({ id: chatId });
+    if (existing) {
+        existing.planTitle = plan.title;
+        existing.participants = plan.participants || [];
+        await existing.save();
+        return existing;
+    }
+
+    return ChatModel.create({
+        id: chatId,
+        planId: plan.id,
+        planTitle: plan.title,
+        isPrivate: false,
+        participants: plan.participants || [],
+        messages: [],
+        unreadCount: 0,
+    });
+}
+
 export async function getChatsForUser(userId: string) {
     await connectToDatabase();
     const chats = await ChatModel.find({ "participants.id": userId }).sort({ "lastMessage.createdAt": -1, _id: -1 });
@@ -520,6 +541,7 @@ export async function getPlans() {
 export async function createPlan(planData: Plan) {
     await connectToDatabase();
     const newPlan = await PlanModel.create(planData);
+    await ensurePlanGroupChat(newPlan);
     revalidatePath('/');
     return JSON.parse(JSON.stringify(newPlan));
 }
@@ -551,6 +573,7 @@ export async function joinPlan(planId: string, user: User) {
     plan.participants.push(user);
     plan.currentParticipants = plan.participants.length;
     await plan.save();
+    await ensurePlanGroupChat(plan);
 
     revalidatePath('/');
     return JSON.parse(JSON.stringify(plan));
