@@ -31,6 +31,10 @@ import {
   createTournament as createTournamentAction,
   getWalletTransactions,
   createWalletTransaction,
+  getChatsForUser,
+  createOrGetPrivateChat,
+  sendChatMessage as sendChatMessageAction,
+  markChatAsRead as markChatAsReadAction,
 } from "./actions"
 
 export type PaymentMethod = "card" | "cash" | "wallet" | null
@@ -75,9 +79,10 @@ interface AppState {
   setLanguage: (language: Language) => void
   setUserLocation: (location: { lat: number; lng: number } | null) => void
   sendMessage: (chatId: string, content: string) => void
+  refreshChats: () => Promise<void>
   markChatRead: (chatId: string) => void
   getChatForPlan: (planId: string) => Chat | undefined
-  startPrivateChat: (otherUser: User) => Chat
+  startPrivateChat: (otherUser: User) => Promise<Chat>
   sendPrivateMessage: (chatId: string, content: string) => void
   getPrivateChatWith: (userId: string) => Chat | undefined
   verifyUser: () => void
@@ -165,6 +170,9 @@ export const useAppStore = create<AppState>()((set, get) => ({
         getUserById(user.id),
         getWalletTransactions(user.id),
       ])
+      const chats = await getChatsForUser(user.id)
+      const groupChats = chats.filter((chat) => !chat.isPrivate)
+      const privateChats = chats.filter((chat) => chat.isPrivate)
 
       const mergedUser: User = dbUser || user
       set({
@@ -183,6 +191,8 @@ export const useAppStore = create<AppState>()((set, get) => ({
         premiumPlan: mergedUser.premiumPlan || "free",
         premiumExpiresAt: mergedUser.premiumExpiresAt ? new Date(mergedUser.premiumExpiresAt) : null,
         walletTransactions: transactions || [],
+        chats: groupChats,
+        privateChats,
       })
     } catch (e) {
       console.error("Error syncing user to DB:", e)
@@ -326,6 +336,20 @@ export const useAppStore = create<AppState>()((set, get) => ({
     }),
   setUserLocation: (location: { lat: number; lng: number } | null) => set({ userLocation: location }),
 
+  refreshChats: async () => {
+    const state = get()
+    if (!state.user?.id) return
+    try {
+      const chats = await getChatsForUser(state.user.id)
+      set({
+        chats: chats.filter((chat) => !chat.isPrivate),
+        privateChats: chats.filter((chat) => chat.isPrivate),
+      })
+    } catch (error) {
+      console.error("Failed to refresh chats from DB:", error)
+    }
+  },
+
   sendMessage: (chatId: string, content: string) =>
     set((state) => {
       if (!state.user) return state
@@ -337,6 +361,9 @@ export const useAppStore = create<AppState>()((set, get) => ({
         content,
         createdAt: new Date(),
       }
+      void sendChatMessageAction(chatId, state.user, content).catch((error) => {
+        console.error("Failed to persist group message:", error)
+      })
       return {
         chats: state.chats.map((chat) =>
           chat.id === chatId
@@ -351,29 +378,29 @@ export const useAppStore = create<AppState>()((set, get) => ({
     }),
 
   markChatRead: (chatId: string) =>
-    set((state) => ({
-      chats: state.chats.map((chat) => (chat.id === chatId ? { ...chat, unreadCount: 0 } : chat)),
-    })),
+    set((state) => {
+      void markChatAsReadAction(chatId).catch((error) => {
+        console.error("Failed to mark chat as read:", error)
+      })
+      return {
+        chats: state.chats.map((chat) => (chat.id === chatId ? { ...chat, unreadCount: 0 } : chat)),
+        privateChats: state.privateChats.map((chat) => (chat.id === chatId ? { ...chat, unreadCount: 0 } : chat)),
+      }
+    }),
 
   getChatForPlan: (planId: string) => {
     return get().chats.find((chat) => chat.planId === planId)
   },
 
-  startPrivateChat: (otherUser: User) => {
+  startPrivateChat: async (otherUser: User) => {
     const state = get()
+    if (!state.user) throw new Error("No authenticated user")
     const existingChat = state.privateChats.find((c) => c.otherUser?.id === otherUser.id)
     if (existingChat) return existingChat
 
-    const newChat: Chat = {
-      id: `private-${otherUser.id}-${Date.now()}`,
-      isPrivate: true,
-      otherUser,
-      participants: [state.user!, otherUser],
-      messages: [],
-      unreadCount: 0,
-    }
-    set({ privateChats: [newChat, ...state.privateChats] })
-    return newChat
+    const dbChat = await createOrGetPrivateChat(state.user, otherUser)
+    set({ privateChats: [dbChat, ...state.privateChats] })
+    return dbChat
   },
 
   sendPrivateMessage: (chatId: string, content: string) =>
@@ -387,6 +414,9 @@ export const useAppStore = create<AppState>()((set, get) => ({
         content,
         createdAt: new Date(),
       }
+      void sendChatMessageAction(chatId, state.user, content).catch((error) => {
+        console.error("Failed to persist private message:", error)
+      })
       return {
         privateChats: state.privateChats.map((chat) =>
           chat.id === chatId

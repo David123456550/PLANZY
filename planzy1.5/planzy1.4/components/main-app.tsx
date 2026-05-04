@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { BottomNav } from "./bottom-nav"
 import { FeedScreen } from "./screens/feed-screen"
 import { SearchScreen } from "./screens/search-screen"
@@ -26,7 +26,15 @@ export function MainApp() {
   const [showChats, setShowChats] = useState(false)
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null)
   const [animationKey, setAnimationKey] = useState(0)
-  const { setUser, setAuthenticated, chats, privateChats, joinedPlans } = useAppStore()
+  const { setUser, setAuthenticated, chats, privateChats, joinedPlans, refreshChats } = useAppStore()
+
+  useEffect(() => {
+    void refreshChats()
+    const interval = setInterval(() => {
+      void refreshChats()
+    }, 4000)
+    return () => clearInterval(interval)
+  }, [refreshChats])
 
   const userChats = chats.filter((chat) => joinedPlans.includes(chat.planId || ""))
   const totalGroupUnread = userChats.reduce((acc, chat) => acc + chat.unreadCount, 0)

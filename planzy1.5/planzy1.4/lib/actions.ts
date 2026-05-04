@@ -3,10 +3,11 @@
 import connectToDatabase from "@/lib/db";
 import { Plan as PlanModel } from "@/lib/models/Plan";
 import { User as UserModel } from "@/lib/models/User";
+import { Chat as ChatModel } from "@/lib/models/Chat";
 import { Tournament as TournamentModel } from "@/lib/models/Tournament";
 import { WalletTransaction as WalletTransactionModel } from "@/lib/models/WalletTransaction";
 import { revalidatePath } from "next/cache";
-import type { User, Plan, Tournament, WalletTransaction } from "@/lib/types";
+import type { User, Plan, Tournament, WalletTransaction, Chat, Message } from "@/lib/types";
 import nodemailer from "nodemailer";
 
 const RESEND_DEFAULT_FROM = "Planzy <onboarding@resend.dev>";
@@ -428,6 +429,84 @@ export async function verifyRegisterCode(email: string, code: string) {
 
     revalidatePath('/');
     return { success: true, user: JSON.parse(JSON.stringify(user)) };
+}
+
+function normalizeChat(doc: any): Chat {
+    return {
+        id: doc.id,
+        planId: doc.planId || undefined,
+        planTitle: doc.planTitle || undefined,
+        isPrivate: Boolean(doc.isPrivate),
+        otherUser: doc.otherUser || undefined,
+        participants: doc.participants || [],
+        messages: doc.messages || [],
+        lastMessage: doc.lastMessage || undefined,
+        unreadCount: doc.unreadCount || 0,
+    };
+}
+
+export async function getChatsForUser(userId: string) {
+    await connectToDatabase();
+    const chats = await ChatModel.find({ "participants.id": userId }).sort({ "lastMessage.createdAt": -1, _id: -1 });
+    return JSON.parse(JSON.stringify(chats.map(normalizeChat)));
+}
+
+export async function createOrGetPrivateChat(currentUser: User, otherUser: User) {
+    await connectToDatabase();
+    const existing = await ChatModel.findOne({
+        isPrivate: true,
+        $and: [
+            { "participants.id": currentUser.id },
+            { "participants.id": otherUser.id },
+        ],
+    });
+
+    if (existing) {
+        return JSON.parse(JSON.stringify(normalizeChat(existing)));
+    }
+
+    const chatId = `private-${[currentUser.id, otherUser.id].sort().join("-")}`;
+    const newChat = await ChatModel.create({
+        id: chatId,
+        isPrivate: true,
+        otherUser,
+        participants: [currentUser, otherUser],
+        messages: [],
+        unreadCount: 0,
+    });
+
+    revalidatePath("/");
+    return JSON.parse(JSON.stringify(normalizeChat(newChat)));
+}
+
+export async function sendChatMessage(chatId: string, sender: User, content: string) {
+    await connectToDatabase();
+    const chat = await ChatModel.findOne({ id: chatId });
+    if (!chat) throw new Error("Chat not found");
+
+    const newMessage: Message = {
+        id: `msg-${Date.now()}`,
+        senderId: sender.id,
+        senderName: sender.name,
+        senderAvatar: sender.avatar,
+        content,
+        createdAt: new Date(),
+    };
+
+    chat.messages.push(newMessage);
+    chat.lastMessage = newMessage;
+    await chat.save();
+
+    revalidatePath("/");
+    return JSON.parse(JSON.stringify(normalizeChat(chat)));
+}
+
+export async function markChatAsRead(chatId: string) {
+    await connectToDatabase();
+    const chat = await ChatModel.findOneAndUpdate({ id: chatId }, { unreadCount: 0 }, { new: true });
+    if (!chat) return null;
+    revalidatePath("/");
+    return JSON.parse(JSON.stringify(normalizeChat(chat)));
 }
 
 // --- Plan Actions ---

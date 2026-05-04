@@ -31,7 +31,7 @@ import { useAppStore } from "@/lib/store"
 import { useTranslation } from "@/lib/i18n"
 import { PrivateChatSheet } from "./private-chat-sheet"
 import { VerifiedBadge } from "./verified-badge"
-import type { User, Plan } from "@/lib/types"
+import type { User, Plan, Chat } from "@/lib/types"
 import { format } from "date-fns"
 import { es, enUS } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
@@ -57,7 +57,7 @@ export function UserProfileSheet({ user: profileUser, open, onOpenChange, onPlan
   const t = useTranslation(language)
   const { toast } = useToast()
   const [chatOpen, setChatOpen] = useState(false)
-  const [activeChat, setActiveChat] = useState<ReturnType<typeof startPrivateChat> | null>(null)
+  const [activeChat, setActiveChat] = useState<Chat | null>(null)
   const dateLocale = language === "es" ? es : enUS
   const [reportOpen, setReportOpen] = useState(false)
   const [reportReason, setReportReason] = useState("")
@@ -70,10 +70,18 @@ export function UserProfileSheet({ user: profileUser, open, onOpenChange, onPlan
   const userCreatedPlans = plans.filter((p) => p.creator.id === profileUser.id)
   const userJoinedPlans = plans.filter((p) => p.participants.some((u) => u.id === profileUser.id))
 
-  const handleStartChat = () => {
-    const chat = startPrivateChat(profileUser)
-    setActiveChat(chat)
-    setChatOpen(true)
+  const handleStartChat = async () => {
+    try {
+      const chat = await startPrivateChat(profileUser)
+      setActiveChat(chat)
+      setChatOpen(true)
+    } catch (error) {
+      toast({
+        title: language === "es" ? "Error" : "Error",
+        description: language === "es" ? "No se pudo abrir el chat" : "Could not open chat",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleBlock = () => {
