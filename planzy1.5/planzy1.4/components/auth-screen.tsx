@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,14 +13,22 @@ import { MapPin, ArrowLeft, CheckCircle, Mail } from "lucide-react"
 import { useAppStore } from "@/lib/store"
 import { useTranslation } from "@/lib/i18n"
 import { useToast } from "@/hooks/use-toast"
-import { createUser, getUser, sendRegisterVerificationCode, verifyRegisterCode } from "@/lib/actions"
+import {
+  createUser,
+  getUser,
+  sendPasswordResetCode,
+  sendRegisterVerificationCode,
+  verifyLoginCode,
+  verifyRegisterCode,
+  resetPasswordWithCode,
+} from "@/lib/actions"
 import type { User } from "@/lib/types"
 
 interface AuthScreenProps {
   onLogin: (user: User) => void
 }
 
-type AuthStep = "auth" | "verification" | "forgot-password"
+type AuthStep = "auth" | "verification" | "forgot-password" | "reset-password"
 
 export function AuthScreen({ onLogin }: AuthScreenProps) {
   const { language } = useAppStore()
@@ -38,8 +46,13 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
   const [authMode, setAuthMode] = useState<"login" | "register">("login")
   const [isResending, setIsResending] = useState(false)
   const [resetEmail, setResetEmail] = useState("")
+  const [resetCode, setResetCode] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmNewPassword, setConfirmNewPassword] = useState("")
   const [isSendingReset, setIsSendingReset] = useState(false)
+  const [isResettingPassword, setIsResettingPassword] = useState(false)
   const [pendingUser, setPendingUser] = useState<User | null>(null)
+  const resetEmailRef = useRef("")
 
   const handleSocialLogin = async (provider: "google" | "facebook" | "apple") => {
     try {
@@ -136,7 +149,27 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
           }
           return
         }
-        onLogin(existingUser)
+        const result = await sendRegisterVerificationCode(existingUser.email)
+        setPendingUser(existingUser)
+        setAuthMode("login")
+        setStep("verification")
+        if (result.emailSent) {
+          toast({
+            title: language === "es" ? "Código enviado" : "Code sent",
+            description:
+              language === "es"
+                ? `Te enviamos un código para iniciar sesión a ${existingUser.email}`
+                : `We sent a login code to ${existingUser.email}`,
+          })
+        } else if (result.code) {
+          toast({
+            title: language === "es" ? "Código generado" : "Code generated",
+            description:
+              language === "es"
+                ? `Código de inicio de sesión: ${result.code}`
+                : `Login code: ${result.code}`,
+          })
+        }
         return
       } else {
         const existingUser = await getUser(email)
@@ -265,7 +298,12 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
     if (!pendingUser?.email) return
 
     setIsVerifying(true)
-    verifyRegisterCode(pendingUser.email, verificationCode)
+    const verificationAction =
+      authMode === "login"
+        ? verifyLoginCode(pendingUser.email, verificationCode)
+        : verifyRegisterCode(pendingUser.email, verificationCode)
+
+    verificationAction
       .then((result) => {
         setIsVerifying(false)
         if (!result.success) {
@@ -289,7 +327,13 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
         toast({
           title: language === "es" ? "Verificación exitosa" : "Verification successful",
           description:
-            language === "es" ? "Tu cuenta ha sido verificada correctamente" : "Your account has been verified",
+            authMode === "login"
+              ? language === "es"
+                ? "Inicio de sesión completado"
+                : "Login completed"
+              : language === "es"
+                ? "Tu cuenta ha sido verificada correctamente"
+                : "Your account has been verified",
         })
         onLogin(result.user)
       })
@@ -343,7 +387,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
     setStep("forgot-password")
   }
 
-  const handleSendResetEmail = () => {
+  const handleSendResetEmail = async () => {
     if (!resetEmail) {
       toast({
         title: "Error",
@@ -353,14 +397,142 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
       return
     }
     setIsSendingReset(true)
-    setTimeout(() => {
+    try {
+      const result = await sendPasswordResetCode(resetEmail)
       setIsSendingReset(false)
+      resetEmailRef.current = resetEmail
+      setStep("reset-password")
       toast({
         title: t.resetEmailSent,
-        description: t.resetEmailSentDesc,
+        description:
+          result && "code" in result && result.code
+            ? language === "es"
+              ? `Código de recuperación: ${result.code}`
+              : `Recovery code: ${result.code}`
+            : t.resetEmailSentDesc,
       })
-      setStep("auth")
-    }, 1500)
+    } catch {
+      setIsSendingReset(false)
+      toast({
+        title: "Error",
+        description:
+          language === "es"
+            ? "No se pudo enviar el correo de recuperación"
+            : "Could not send recovery email",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleResetPassword = async () => {
+    if (!resetCode || resetCode.length !== 6 || !newPassword || !confirmNewPassword) {
+      toast({
+        title: "Error",
+        description:
+          language === "es"
+            ? "Completa todos los campos y el código de 6 dígitos"
+            : "Complete all fields and the 6-digit code",
+        variant: "destructive",
+      })
+      return
+    }
+    if (newPassword !== confirmNewPassword) {
+      toast({
+        title: "Error",
+        description: language === "es" ? "Las contraseñas no coinciden" : "Passwords do not match",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsResettingPassword(true)
+    const result = await resetPasswordWithCode(resetEmailRef.current || resetEmail, resetCode, newPassword)
+    setIsResettingPassword(false)
+    if (!result.success) {
+      toast({
+        title: "Error",
+        description:
+          result.reason === "expired"
+            ? language === "es"
+              ? "El código ha expirado"
+              : "Code has expired"
+            : language === "es"
+              ? "Código inválido"
+              : "Invalid code",
+        variant: "destructive",
+      })
+      return
+    }
+
+    toast({
+      title: language === "es" ? "Contraseña actualizada" : "Password updated",
+      description:
+        language === "es"
+          ? "Ya puedes iniciar sesión con tu nueva contraseña"
+          : "You can now log in with your new password",
+    })
+    setStep("auth")
+    setPassword(newPassword)
+  }
+
+  if (step === "reset-password") {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto flex min-h-screen flex-col items-center justify-center px-5 py-8">
+          <div className="mb-8">
+            <PlanzyLogo size="lg" />
+          </div>
+
+          <Card className="w-full max-w-md">
+            <CardHeader className="relative text-center px-6 pt-6">
+              <Button variant="ghost" size="sm" className="absolute left-4 top-4" onClick={() => setStep("forgot-password")}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                {t.backToLogin}
+              </Button>
+              <CardTitle style={{ color: "#1a95a4" }}>
+                {language === "es" ? "Restablecer contraseña" : "Reset password"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 px-6 pb-6">
+              <div className="space-y-2">
+                <Label>{language === "es" ? "Código" : "Code"}</Label>
+                <InputOTP maxLength={6} value={resetCode} onChange={(value) => setResetCode(value)}>
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+              <div className="space-y-2">
+                <Label>{language === "es" ? "Nueva contraseña" : "New password"}</Label>
+                <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>{language === "es" ? "Confirmar contraseña" : "Confirm password"}</Label>
+                <Input type="password" value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} />
+              </div>
+              <Button
+                className="w-full bg-[#ef7418] hover:bg-[#ef7418]/90 text-white"
+                onClick={handleResetPassword}
+                disabled={isResettingPassword}
+              >
+                {isResettingPassword
+                  ? language === "es"
+                    ? "Actualizando..."
+                    : "Updating..."
+                  : language === "es"
+                    ? "Actualizar contraseña"
+                    : "Update password"}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
   }
 
   if (step === "forgot-password") {

@@ -406,6 +406,85 @@ export async function sendRegisterVerificationCode(email: string) {
     return { success: true, code: undefined, emailSent };
 }
 
+export async function verifyLoginCode(email: string, code: string) {
+    await connectToDatabase();
+    const user = await UserModel.findOne({ email });
+    if (!user) {
+        return { success: false, reason: "not-found" };
+    }
+
+    const isExpired = !user.emailVerificationExpiresAt || new Date(user.emailVerificationExpiresAt).getTime() < Date.now();
+    if (isExpired) {
+        return { success: false, reason: "expired" };
+    }
+
+    if (!user.emailVerificationCode || user.emailVerificationCode !== code) {
+        return { success: false, reason: "invalid" };
+    }
+
+    user.emailVerificationCode = null;
+    user.emailVerificationExpiresAt = null;
+    await user.save();
+
+    revalidatePath("/");
+    return { success: true, user: JSON.parse(JSON.stringify(user)) };
+}
+
+export async function sendPasswordResetCode(email: string) {
+    await connectToDatabase();
+    const user = await UserModel.findOne({ email });
+    if (!user) {
+        return { success: true };
+    }
+
+    const code = `${Math.floor(100000 + Math.random() * 900000)}`;
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    user.passwordResetCode = code;
+    user.passwordResetExpiresAt = expiresAt;
+    await user.save();
+
+    try {
+        await sendVerificationEmail(user.email, user.name, code);
+        return { success: true, emailSent: true };
+    } catch (error: any) {
+        console.error(`❌ Error enviando código de reset a ${email}:`, error?.message || error);
+        if (process.env.NODE_ENV === "development") {
+            console.log("=".repeat(60));
+            console.log(`🔐 Código reset password para ${email}: ${code}`);
+            console.log("=".repeat(60));
+            return { success: true, emailSent: false, code };
+        }
+        return { success: false, error: "No se pudo enviar el correo de recuperación" };
+    }
+}
+
+export async function resetPasswordWithCode(email: string, code: string, newPassword: string) {
+    await connectToDatabase();
+    const user = await UserModel.findOne({ email });
+    if (!user) {
+        return { success: false, reason: "not-found" };
+    }
+
+    const isExpired =
+        !user.passwordResetExpiresAt || new Date(user.passwordResetExpiresAt).getTime() < Date.now();
+    if (isExpired) {
+        return { success: false, reason: "expired" };
+    }
+
+    if (!user.passwordResetCode || user.passwordResetCode !== code) {
+        return { success: false, reason: "invalid" };
+    }
+
+    user.password = newPassword;
+    user.passwordResetCode = null;
+    user.passwordResetExpiresAt = null;
+    await user.save();
+
+    revalidatePath("/");
+    return { success: true };
+}
+
 export async function verifyRegisterCode(email: string, code: string) {
     await connectToDatabase();
     const user = await UserModel.findOne({ email });

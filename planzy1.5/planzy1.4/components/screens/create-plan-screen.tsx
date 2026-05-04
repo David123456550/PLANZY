@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import {
   ArrowLeft,
   ImagePlus,
@@ -75,6 +75,8 @@ export function CreatePlanScreen({ onBack, editPlan }: CreatePlanScreenProps) {
   const [courtPrice, setCourtPrice] = useState(editPlan?.courtReservation?.price?.toString() || "")
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [errors, setErrors] = useState<Record<string, boolean>>({})
+  const [imagePreview, setImagePreview] = useState(editPlan?.image || "")
+  const fileInputRef = useRef<HTMLInputElement>(null)
   
   // Tournament state
   const [isTournament, setIsTournament] = useState(false)
@@ -98,6 +100,24 @@ export function CreatePlanScreen({ onBack, editPlan }: CreatePlanScreenProps) {
   }
 
   const isEditing = !!editPlan
+
+  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "Error",
+        description: language === "es" ? "Selecciona una imagen válida" : "Select a valid image",
+        variant: "destructive",
+      })
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      setImagePreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
 
   const validateForm = () => {
     const newErrors: Record<string, boolean> = {}
@@ -136,6 +156,7 @@ export function CreatePlanScreen({ onBack, editPlan }: CreatePlanScreenProps) {
       updatePlan(editPlan.id, {
         title,
         description,
+        image: imagePreview || editPlan.image,
         category,
         date: new Date(date),
         time,
@@ -167,7 +188,7 @@ export function CreatePlanScreen({ onBack, editPlan }: CreatePlanScreenProps) {
         id: `plan-${Date.now()}`,
         title,
         description,
-        image: `/placeholder.svg?height=400&width=600&query=${encodeURIComponent(title)}`,
+        image: imagePreview || `/placeholder.svg?height=400&width=600&query=${encodeURIComponent(title)}`,
         category,
         date: new Date(date),
         time,
@@ -282,14 +303,23 @@ export function CreatePlanScreen({ onBack, editPlan }: CreatePlanScreenProps) {
       <div className="px-5 py-6 space-y-6">
         {/* Image upload */}
         <Card className="overflow-hidden">
-          <div className="flex h-44 items-center justify-center bg-muted">
-            <div className="text-center">
-              <ImagePlus className="mx-auto h-10 w-10 text-muted-foreground" />
-              <p className="mt-2 text-sm text-muted-foreground">
-                {language === "es" ? "Añadir imagen del plan" : "Add plan image"}
-              </p>
-            </div>
-          </div>
+          <button
+            type="button"
+            className="flex h-44 w-full items-center justify-center bg-muted"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {imagePreview ? (
+              <img src={imagePreview} alt="Plan" className="h-full w-full object-cover" />
+            ) : (
+              <div className="text-center">
+                <ImagePlus className="mx-auto h-10 w-10 text-muted-foreground" />
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {language === "es" ? "Añadir imagen del plan" : "Add plan image"}
+                </p>
+              </div>
+            )}
+          </button>
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
         </Card>
 
         {/* Basic info */}

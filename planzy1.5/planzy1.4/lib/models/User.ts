@@ -8,6 +8,8 @@ const UserSchema = new Schema({
     isEmailVerified: { type: Boolean, default: false },
     emailVerificationCode: { type: String, default: null },
     emailVerificationExpiresAt: { type: Date, default: null },
+    passwordResetCode: { type: String, default: null },
+    passwordResetExpiresAt: { type: Date, default: null },
     password: String,
     phone: String,
     dni: String,

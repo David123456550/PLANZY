@@ -6,6 +6,8 @@ export interface User {
   isEmailVerified?: boolean
   emailVerificationCode?: string | null
   emailVerificationExpiresAt?: Date | null
+  passwordResetCode?: string | null
+  passwordResetExpiresAt?: Date | null
   password?: string
   phone?: string
   dni?: string
